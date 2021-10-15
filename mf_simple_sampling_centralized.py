@@ -136,9 +136,9 @@ def main():
     parser.add_argument(
                         '--data',
                         type=str,
-                        default='/home/sufe/Desktop/neural_collaborative_filtering/Data/ml-1m',
+                        default='Data/ml-1m',
                         help='Path to the dataset')
-    parser.add_argument('--privacy_budget',
+    parser.add_argument('--max_budget',
                         type=float,
                         default=1.0,
                         help='maximum privacy budget for all the ratings')
@@ -175,7 +175,7 @@ def main():
                         help='Standard deviation for initialization.')
     parser.add_argument('--threshold',
                         type=float,
-                        default=0.2,
+                        default=1,
                         help='The threshold in the sampling mechanism')
     args = parser.parse_args()
 
@@ -195,11 +195,11 @@ def main():
     threshold = args.threshold
     sampled_index = []
     num_training_examples = len(train_rating_matrix)
-    privacy_budget = args.privacy_budget
+    max_budget = args.max_budget
     for i in range(num_training_examples):
         user_level_weight = random.choice(user_level_list)
         item_level_weight = random.choice(item_level_list)
-        rating_privacy_budget = user_level_weight * item_level_weight * privacy_budget
+        rating_privacy_budget = user_level_weight * item_level_weight * max_budget
         if threshold > rating_privacy_budget:
             sampling_probability = (np.exp(rating_privacy_budget) -
                                     1) / (np.exp(threshold) - 1)
@@ -234,7 +234,7 @@ def main():
         # Evaluation
         mse = evaluate(model, test_ratings)
         print('Non_private Epoch %4d:\t MSE=%.4f\t' % (epoch + 1, mse))
-        training_result.append(["Nonprivate", epoch, mse])
+        training_result.append(["Nonprivate", epoch, round(mse,6)])
 
     for epoch in range(args.private_epochs):
         # Private Training
@@ -247,10 +247,10 @@ def main():
         # Evaluation
         mse = evaluate(model, test_ratings)
         print('Private Epoch %4d:\t MSE=%.4f\t' % (epoch + 1, mse))
-        training_result.append(["Private", epoch, mse])
+        training_result.append(["Private", epoch, round(mse,6)])
 
     #Write the training result into csv
-    with open("sampling_centralized_training_threshold=1.csv", "w") as csvfile:
+    with open(f"./Results/sampling_centralized_maxbudget={args.max_budget}_threshold={args.threshold}_nonprivnum={args.nonprivate_epochs}_privnum={args.private_epochs}.csv.csv", "w") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["privacy_mode", "epoch", "mse"])
         for row in training_result:

@@ -132,9 +132,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data',
 						type=str,
-						default='/home/sufe/Desktop/neural_collaborative_filtering/Data/ml-1m',
+						default='Data/ml-1m',
 						help='Path to the dataset')
-    parser.add_argument('--privacy_budget',
+    parser.add_argument('--max_budget',
                         type=float,
                         default=1.0,
                         help='maximum privacy budget for all the ratings')
@@ -203,30 +203,30 @@ def main():
         # Non_private Training
         private_mode = 0
         _ = model.fit(private_mode,
-                      args.privacy_budget,
+                      args.max_budget,
                       train_rating_matrix,
                       learning_rate=args.learning_rate)
 
         # Evaluation
         mse = evaluate(model, test_ratings)
         print('Non_private Epoch %4d:\t MSE=%.4f\t' % (epoch + 1, mse))
-        training_result.append(["Nonprivate", epoch, mse])
+        training_result.append(["Nonprivate", epoch, round(mse,6)])
 
     for epoch in range(args.private_epochs):
         # Private Training
         private_mode = 1
         _ = model.fit(private_mode,
-                      args.privacy_budget,
+                      args.max_budget,
                       train_rating_matrix,
                       learning_rate=args.learning_rate)
 
         # Evaluation
         mse = evaluate(model, test_ratings)
         print('Private Epoch %4d:\t MSE=%.4f\t' % (epoch + 1, mse))
-        training_result.append(["Private", epoch, mse])
+        training_result.append(["Private", epoch, round(mse,6)])
 
     #Write the training result into csv
-    with open("hdp_centralized_training.csv", "w") as csvfile:
+    with open(f"./Results/hdp_centralized_maxbudget={args.max_budget}_nonprivnum={args.nonprivate_epochs}_privnum={args.private_epochs}.csv", "w") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["privacy_mode", "epoch", "mse"])
         for row in training_result:

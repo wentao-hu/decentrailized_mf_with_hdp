@@ -1,1 +1,1 @@
-python Dataprocess_demo.py
+python mf_simple_hdp_centralized.py
