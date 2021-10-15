@@ -42,7 +42,6 @@ from random import triangular
 # Dataset and evaluation protocols reused from
 # https://github.com/hexiangnan/neural_collaborative_filtering
 from Dataset_explicit import Dataset_explicit
-from evaluate import evaluate_model
 import numpy as np
 
 
@@ -96,14 +95,8 @@ class MFModel(object):
             err_ui = rating - prediction
 
             for k in range(embedding_dim):
-                self.user_embedding[user, k] += lr * 2 * (
-                    err_ui * self.item_embedding[item][k] -
-                    reg * self.user_embedding[user, k]
-                )  #the latter part is negative gradient
-                self.item_embedding[
-                    item,
-                    k] += lr * 2 * (err_ui * self.user_embedding[user][k] -
-                                    reg * self.item_embedding[item, k])
+                self.user_embedding[user, k] += lr * 2 * (err_ui * self.item_embedding[item][k] -reg * self.user_embedding[user, k])  #the latter part is negative gradient
+                self.item_embedding[item,k] += lr * 2 * (err_ui * self.user_embedding[user][k] -reg * self.item_embedding[item, k])
             sum_of_loss += err_ui**2
 
         # Return the mean square loss during training process.
@@ -126,20 +119,20 @@ def main():
     # Command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--data',
-        type=str,
-        default='/home/sufe/Desktop/neural_collaborative_filtering/Data/ml-1m',
-        help='Path to the dataset')
+                        '--data',
+                        type=str,
+                        default='/home/sufe/Desktop/neural_collaborative_filtering/Data/ml-1m',
+                        help='Path to the dataset')
     parser.add_argument('--epochs',
                         type=int,
                         default=128,
                         help='Number of training epochs')
     parser.add_argument(
-        '--embedding_dim',
-        type=int,
-        default=8,
-        help='Embedding dimensions, the first dimension will be '
-        'used for the bias.')
+                        '--embedding_dim',
+                        type=int,
+                        default=8,
+                        help='Embedding dimensions, the first dimension will be '
+                        'used for the bias.')
     parser.add_argument('--regularization',
                         type=float,
                         default=0.0,

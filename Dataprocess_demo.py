@@ -2,7 +2,11 @@ from Dataset_explicit import Dataset_explicit
 import numpy as np
 
 import os
-os.chdir(os.path.dirname(__file__))
-def myfun(a,b):
-    return a+b
-print(myfun(1,3))
+import csv
+
+training_result=[[1,2,3]]
+with open("./Results/test.csv", "w") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["privacy_mode", "epoch", "mse"])
+        for row in training_result:
+            writer.writerow(row)

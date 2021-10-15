@@ -1,9 +1,3 @@
-'''
-Created on Aug 8, 2016
-Processing datasets. 
-
-@author: Xiangnan He (xiangnanhe@gmail.com)
-'''
 
 '''
 Modified on Oct 12, 2021
@@ -11,6 +5,7 @@ Modified on Oct 12, 2021
 '''
 
 import numpy as np
+
 
 class Dataset_explicit(object):
     '''
@@ -21,8 +16,10 @@ class Dataset_explicit(object):
         '''
         Constructor
         '''
-        self.trainMatrix, self.num_users, self.num_items= self.load_explicit_rating_file_as_list(path + ".train.rating")
-        self.testRatings,self.num_test_users,self.num_test_items = self.load_explicit_rating_file_as_list(path + ".test.rating")
+        self.trainMatrix, self.num_users, self.num_items = self.load_explicit_rating_file_as_list(
+            path + ".train.rating")
+        self.testRatings, self.num_test_users, self.num_test_items = self.load_explicit_rating_file_as_list(
+            path + ".test.rating")
 
     def load_explicit_rating_file_as_list(self, filename):
         # Get number of users and items
@@ -41,7 +38,7 @@ class Dataset_explicit(object):
             line = f.readline()
             while line != None and line != "":
                 arr = line.split("\t")
-                user, item ,rating= int(arr[0]), int(arr[1]), int(arr[2])
+                user, item, rating = int(arr[0]), int(arr[1]), int(arr[2])
                 ratingList.append([user, item, rating])
                 line = f.readline()
-        return ratingList,num_users+1,num_items+1
+        return ratingList, num_users+1, num_items+1
