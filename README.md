@@ -9,25 +9,17 @@ The code for basic matrix factorization is based the following paper and their g
 ## Example to run the codes.
 The instruction of commands has been clearly stated in the codes (see the  parse_args function). 
 
-Run HDP_centralized:
+Run HDP_centralized, the following is shown in **run_hdp_centralized.sh**:
 ```
-python GMF.py --dataset ml-1m --epochs 20 --batch_size 256 --num_factors 8 --regs [0,0] --num_neg 4 --lr 0.001 --learner adam --verbose 1 --out 1
+python mf_simple_hdp_centralized.py --data Data/ml-1m --max_budget 1 --nonprivate_epochs 54 --private_epochs 54 --embedding_dim 8 --regularization 0.005 --learning_rate 0.002 --stddev 0.1
+
 ```
 
-Run Sampling_centralized:
+Run Sampling_centralized, the following is shown in **run_sampling_centralized.sh**:
 ```
-python MLP.py --dataset ml-1m --epochs 20 --batch_size 256 --layers [64,32,16,8] --reg_layers [0,0,0,0] --num_neg 4 --lr 0.001 --learner adam --verbose 1 --out 1
-```
-
-Run HDP_decentralized: 
-```
-python NeuMF.py --dataset ml-1m --epochs 20 --batch_size 256 --num_factors 8 --layers [64,32,16,8] --reg_mf 0 --reg_layers [0,0,0,0] --num_neg 4 --lr 0.001 --learner adam --verbose 1 --out 1
+python mf_simple_sampling_centralized.py --data Data/ml-1m --max_budget 1 --threshold 1 --nonprivate_epochs 54 --private_epochs 54 --embedding_dim 8 --regularization 0.005 --learning_rate 0.002 --stddev 0.1
 ```
 
-Run Sampling_decentralized:
-```
-python NeuMF.py --dataset ml-1m --epochs 20 --batch_size 256 --num_factors 8 --layers [64,32,16,8] --num_neg 4 --lr 0.001 --learner adam --verbose 1 --out 1 --mf_pretrain Pretrain/ml-1m_GMF_8_1501651698.h5 --mlp_pretrain Pretrain/ml-1m_MLP_[64,32,16,8]_1501652038.h5
-```
 
 
 
@@ -36,13 +28,13 @@ We provide two processed datasets: MovieLens 1 Million (ml-1m) and Pinterest (pi
 
 train.rating: 
 - Train file.
-- Each Line is a training instance: userID\t itemID\t rating\t timestamp (if have)
+- Each Line is a training instance: userID  itemID  rating timestamp (if have)
 
 test.rating:
 - Test file (positive instances). 
-- Each Line is a testing instance: userID\t itemID\t rating\t timestamp (if have)
+- Each Line is a testing instance: userID   itemID rating timestamp (if have)
 
 test.negative
 - Test file (negative instances).
 - Each line corresponds to the line of test.rating, containing 99 negative samples.  
-- Each line is in the format: (userID,itemID)\t negativeItemID1\t negativeItemID2 ...
+- Each line is in the format: (userID,itemID)  negativeItemID1  negativeItemID2 ...

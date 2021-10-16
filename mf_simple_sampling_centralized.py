@@ -1,6 +1,4 @@
 # coding=utf-8
-# Copyright 2021 The Google Research Authors.
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,23 +10,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-r"""Evaluation of matrix factorization following the protocol of the NCF paper.
 
-Details:
- - Model: Matrix factorization with biases:
-     y(u,i) = b + v_{u,1}+v_{i,1}+\sum_{f=2}^d v_{u,f}*v_{i,f}
- - Loss: logistic loss
- - Optimization algorithm: stochastic gradient descent
- - Negatives sampling: Random negatives are added during training
- - Optimization objective (similar to NCF paper)
-     argmin_V \sum_{(u,i) \in S} [
-          ln(1+exp(-y(u,i)))
-        + #neg/|I| * \sum_{j \in I} ln(1+exp(y(u,j)))
-        + reg * ||V||_2^2 ]
- - Evaluation follows the protocol from:
-   He, X., Liao, L., Zhang, H., Nie, L., Hu, X., and Chua, T.-S.: Neural
-   collaborative filtering. WWW 2017
-"""
 '''
 Modified on Oct 12, 2021
 1. Delete the bias in the model
@@ -42,8 +24,6 @@ privacy,KBS 2019,Zhang et al."
 
 import argparse
 from random import triangular
-# Dataset and evaluation protocols reused from
-# https://github.com/hexiangnan/neural_collaborative_filtering
 from Dataset_explicit import Dataset_explicit
 import numpy as np
 import random
@@ -163,8 +143,6 @@ def main():
                         type=float,
                         default=0.0,
                         help='L2 regularization for user and item embeddings.')
-    # parser.add_argument('--negatives', type=int, default=8,
-    #                     help='Number of random negatives per positive examples.')
     parser.add_argument('--learning_rate',
                         type=float,
                         default=0.001,
