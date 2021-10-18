@@ -6,7 +6,7 @@
 #     http://www.apache.org/licenses/LICENSE-2.0
 
 '''
-Modified on Oct 16, 2021
+Modified on Oct 18, 2021
 1. Delete the bias in the model
 2. Change logistic loss to square loss for explicit feedback 
 3. Change the evaluation metrics from HR and NDCG to MSE
@@ -43,8 +43,7 @@ class MFModel(object):
         """Predicts the score of a user for an item."""
         return (np.dot(self.user_embedding[user], self.item_embedding[item]))
 
-    def fit(self, private_mode, privacy_budget, train_rating_matrix,
-            learning_rate):
+    def fit(self, private_mode, privacy_budget, train_rating_matrix,learning_rate,num_rated_users):
         """Trains the model for one epoch.
 
 		Args:
@@ -63,13 +62,16 @@ class MFModel(object):
         embedding_dim = self.embedding_dim
         lr = learning_rate
         Delta = 4
-        l1_sensitivity = 2 * np.sqrt(embedding_dim) * Delta
         sum_of_loss = 0.0
         for i in range(num_examples):
             (user, item, stretch_rating) = train_rating_matrix[i]
             prediction = self._predict_one(user, item)
 
             err_ui = stretch_rating - prediction
+
+            h=np.random.exponential(1)
+            std=np.sqrt(1/num_rated_users[item])
+            c=np.random.normal(0,std)
             if private_mode == 0:
                 for k in range(embedding_dim):
                     self.user_embedding[user,k] += lr * 2 * (err_ui * self.item_embedding[item][k] -
@@ -81,8 +83,7 @@ class MFModel(object):
                 #privately update item embedding only
                 for k in range(embedding_dim):
                     self.item_embedding[item, k] += lr * (2 * (err_ui * self.user_embedding[user][k] - reg *self.item_embedding[item, k]) -
-                    np.random.laplace(0, l1_sensitivity / privacy_budget, 1))
-                    #the latter is negative grad minus laplace noise
+                    2 * Delta*np.sqrt(2*embedding_dim*h) *c/privacy_budget)
             sum_of_loss += err_ui**2
 
         # Return the mean square loss during training process.
@@ -146,6 +147,7 @@ def main():
     dataset = Dataset_explicit(args.data)
     train_rating_matrix = dataset.trainMatrix
     test_ratings = dataset.testRatings
+    train_num_rated_users=dataset.train_num_rated_users
     print('Dataset: #user=%d, #item=%d, #train_pairs=%d, #test_pairs=%d' %
           (dataset.num_users, dataset.num_items, len(train_rating_matrix),
            len(test_ratings)))
@@ -174,10 +176,7 @@ def main():
     for epoch in range(args.nonprivate_epochs):
         # Non_private Training
         private_mode = 0
-        _ = model.fit(private_mode,
-                      args.max_budget,
-                      train_rating_matrix,
-                      learning_rate=args.learning_rate)
+        _ = model.fit(private_mode,args.max_budget,train_rating_matrix,args.learning_rate,train_num_rated_users)
 
         # Evaluation
         mse = evaluate(model, test_ratings)
@@ -187,10 +186,7 @@ def main():
     for epoch in range(args.private_epochs):
         # Private Training
         private_mode = 1
-        _ = model.fit(private_mode,
-                      args.max_budget,
-                      train_rating_matrix,
-                      learning_rate=args.learning_rate)
+        _ = model.fit(private_mode,args.max_budget,train_rating_matrix,args.learning_rate,train_num_rated_users)
 
         # Evaluation
         mse = evaluate(model, test_ratings)

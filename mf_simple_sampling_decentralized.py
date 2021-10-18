@@ -16,7 +16,7 @@ Modified on Oct 12, 2021
 1. Delete the bias in the model
 2. Change logistic loss to square loss for explicit feedback 
 3. Change the evaluation metrics from HR and NDCG to MSE
-4. Add Laplacian noise to the gradient in a centralized way
+4. Add Laplacian noise to the gradient in a decentralized way
 5. Reproduce the experiments in "Probabilistic matrix factorization with personalized differential
 privacy,KBS 2019,Zhang et al."
 @author: Wentao Hu (stevenhwt@gmail.com)
@@ -52,8 +52,7 @@ class MFModel(object):
         """Predicts the score of a user for an item."""
         return (np.dot(self.user_embedding[user], self.item_embedding[item]))
 
-    def fit(self, private_mode, privacy_budget, train_rating_matrix,
-            learning_rate):
+    def fit(self, private_mode, privacy_budget, train_rating_matrix,learning_rate,num_rated_users):
         """Trains the model for one epoch.
 
     Args:
@@ -72,13 +71,15 @@ class MFModel(object):
         embedding_dim = self.embedding_dim
         lr = learning_rate
         Delta = 4
-        l1_sensitivity = 2 * np.sqrt(embedding_dim) * Delta
         sum_of_loss = 0.0
         for i in range(num_examples):
             (user, item, rating) = train_rating_matrix[i]
             prediction = self._predict_one(user, item)
 
             err_ui = rating - prediction
+            h=np.random.exponential(1)
+            std=np.sqrt(1/num_rated_users[item])
+            c=np.random.normal(0,std)
             if private_mode == 0:
                 for k in range(embedding_dim):
                     self.user_embedding[user,k] += lr * 2 * (err_ui * self.item_embedding[item][k] -
@@ -90,8 +91,7 @@ class MFModel(object):
                 #privately update item embedding only
                 for k in range(embedding_dim):
                     self.item_embedding[item, k] += lr * (2 * (err_ui * self.user_embedding[user][k] - reg *self.item_embedding[item, k]) 
-                    - np.random.laplace(0, l1_sensitivity / privacy_budget, 1))
-                    #the latter is negative grad minus laplace noise
+                    - 2 * Delta*np.sqrt(2*embedding_dim*h) *c/privacy_budget)
             sum_of_loss += err_ui**2
 
         # Return the mean square loss during training process.
@@ -190,7 +190,15 @@ def main():
     sampled_train_rating_matrix = [
         train_rating_matrix[i] for i in sampled_index
     ]
-
+    num_rated_users={}
+    for row in sampled_train_rating_matrix:
+        item=row[1]
+        if item in num_rated_users.keys():
+                    num_rated_users[item]+=1
+        else:
+            num_rated_users[item]=1
+    
+    
     # Initialize the model
     model = MFModel(dataset.num_users, dataset.num_items, args.embedding_dim,
                     args.regularization, args.stddev)
@@ -204,10 +212,7 @@ def main():
     for epoch in range(args.nonprivate_epochs):
         # Non_private Training
         private_mode = 0
-        _ = model.fit(private_mode,
-                      args.threshold,
-                      sampled_train_rating_matrix,
-                      learning_rate=args.learning_rate)
+        _ = model.fit(private_mode,args.threshold,sampled_train_rating_matrix,args.learning_rate,num_rated_users)
 
         # Evaluation
         mse = evaluate(model, test_ratings)
@@ -217,10 +222,7 @@ def main():
     for epoch in range(args.private_epochs):
         # Private Training
         private_mode = 1
-        _ = model.fit(private_mode,
-                      args.threshold,
-                      sampled_train_rating_matrix,
-                      learning_rate=args.learning_rate)
+        _ = model.fit(private_mode,args.threshold,sampled_train_rating_matrix,args.learning_rate,num_rated_users)
 
         # Evaluation
         mse = evaluate(model, test_ratings)
@@ -228,7 +230,7 @@ def main():
         training_result.append(["Private", epoch, round(mse,6)])
 
     #Write the training result into csv
-    with open(f"./Results/sampling_centralized_maxbudget={args.max_budget}_threshold={args.threshold}_nonprivnum={args.nonprivate_epochs}_privnum={args.private_epochs}.csv", "w") as csvfile:
+    with open(f"./Results/sampling_centralized_maxbudget={args.max_budget}_threshold={args.threshold}_nonprivnum={args.nonprivate_epochs}_privnum={args.private_epochs}.csv.csv", "w") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["privacy_mode", "epoch", "mse"])
         for row in training_result:
