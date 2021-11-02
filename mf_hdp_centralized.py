@@ -41,14 +41,20 @@ class MFModel(object):
 
     def _predict_one(self, user, item):
         """Predicts the score of a user for an item."""
-        return (np.dot(self.user_embedding[user], self.item_embedding[item]))
+        raw_prediction=np.dot(self.user_embedding[user], self.item_embedding[item])
+        if raw_prediction>=5:
+            prediction=5
+        elif raw_prediction<=1:
+            prediction=1
+        else:
+            prediction=raw_prediction
+        return prediction
 
-    def fit(self, private_mode, privacy_budget, train_rating_matrix,
-            learning_rate):
+    def fit(self, private_mode, privacy_budget, train_rating_matrix,learning_rate):
         """Trains the model for one epoch.
 
 		Args:
-			train_rating_matrix: a nested list, each secondary list representing a positive
+            train_rating_matrix: a nested list, each secondary list representing a positive
 				user-item pair and their rating.
 			learning_rate: the learning rate to use.
 
@@ -165,45 +171,37 @@ def main():
     model = MFModel(dataset.num_users, dataset.num_items, args.embedding_dim,
                     args.regularization, args.stddev)
 
+    #Train and evaluate the model
     training_result = []
-    # Train and evaluate model
-    mse = evaluate(model, test_ratings)
-    print('Initial Epoch %4d:\t MSE=%.4f\t' % (0, mse))
-    training_result.append(["Nonprivate", 0, mse])
 
     for epoch in range(args.nonprivate_epochs):
         # Non_private Training
         private_mode = 0
-        _ = model.fit(private_mode,
-                      args.max_budget,
-                      train_rating_matrix,
-                      learning_rate=args.learning_rate)
+        train_mse = model.fit(private_mode,args.max_budget,train_rating_matrix,args.learning_rate)
+        train_mse=round(train_mse,4)
 
         # Evaluation
-        mse = evaluate(model, test_ratings)
-        print('Non_private Epoch %4d:\t MSE=%.4f\t' % (epoch + 1, mse))
-        training_result.append(["Nonprivate", epoch, round(mse,6)])
+        test_mse = round(evaluate(model, test_ratings),4)
+        print('Nonprivate Epoch %4d:\t trainloss=%.4f\t testloss=%.4f\t' % (epoch+1, train_mse,test_mse))
+        training_result.append(["Nonprivate",epoch+1, train_mse,test_mse])
 
     for epoch in range(args.private_epochs):
         # Private Training
         private_mode = 1
-        _ = model.fit(private_mode,
-                      args.max_budget,
-                      train_rating_matrix,
-                      learning_rate=args.learning_rate)
+        train_mse = model.fit(private_mode,args.max_budget,train_rating_matrix,args.learning_rate)
+        train_mse=round(train_mse,4)
 
         # Evaluation
-        mse = evaluate(model, test_ratings)
-        print('Private Epoch %4d:\t MSE=%.4f\t' % (epoch + 1, mse))
-        training_result.append(["Private", epoch, round(mse,6)])
+        test_mse = round(evaluate(model, test_ratings),4)
+        print('Private Epoch %4d:\t trainloss=%.4f\t testloss=%.4f\t' % (epoch+1, train_mse,test_mse))
+        training_result.append(["Private", epoch+1, train_mse,test_mse])
 
     #Write the training result into csv
     with open(f"./Results/hdp_centralized_maxbudget={args.max_budget}_nonprivnum={args.nonprivate_epochs}_privnum={args.private_epochs}.csv", "w") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(["privacy_mode", "epoch", "mse"])
+        writer.writerow(["privacy_mode", "epoch", "train_mse","test_mse"])
         for row in training_result:
             writer.writerow(row)
-
 
 if __name__ == '__main__':
     main()

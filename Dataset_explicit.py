@@ -23,7 +23,7 @@ class Dataset_explicit(object):
     def load_explicit_rating_file_as_list(self, filename):
         # Get number of users and items
         num_users, num_items = 0, 0
-        # Get the number of rated users for each item 
+        # Get the number of rated users for each item in original rating matrix
         num_rated_users={}
         ratingList = []
         with open(filename, "r") as f:
