@@ -11,13 +11,13 @@ The instruction of commands has been clearly stated in the codes (see the  parse
 
 Run HDP_centralized, the following code is shown in **run_hdp_centralized.sh**:
 ```
-python mf_simple_hdp_centralized.py --data Data/ml-1m --max_budget 1 --nonprivate_epochs 54 --private_epochs 54 --embedding_dim 8 --regularization 0.005 --learning_rate 0.002 --stddev 0.1
+python mf_hdp_centralized.py --data Data/ml-1m --max_budget 1 --nonprivate_epochs 54 --private_epochs 54 --embedding_dim 8 --regularization 0.005 --learning_rate 0.002 --stddev 0.1
 
 ```
 
 Run Sampling_centralized, the following code is shown in **run_sampling_centralized.sh**:
 ```
-python mf_simple_sampling_centralized.py --data Data/ml-1m --max_budget 1 --threshold 1 --nonprivate_epochs 54 --private_epochs 54 --embedding_dim 8 --regularization 0.005 --learning_rate 0.002 --stddev 0.1
+python mf_sampling_centralized.py --data Data/ml-1m --max_budget 1 --threshold 1 --nonprivate_epochs 54 --private_epochs 54 --embedding_dim 8 --regularization 0.005 --learning_rate 0.002 --stddev 0.1
 ```
 
 
