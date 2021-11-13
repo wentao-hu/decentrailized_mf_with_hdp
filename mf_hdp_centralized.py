@@ -6,11 +6,6 @@
 #     http://www.apache.org/licenses/LICENSE-2.0
 
 '''
-Modified on Oct 12, 2021
-1. Delete the bias in the model
-2. Change logistic loss to square loss for explicit feedback 
-3. Change the evaluation metrics from HR and NDCG to MSE
-4. Add Laplacian noise to the gradient in a centralized way
 @author: Wentao Hu (stevenhwt@gmail.com)
 '''
 
@@ -44,8 +39,8 @@ class MFModel(object):
         raw_prediction=np.dot(self.user_embedding[user], self.item_embedding[item])
         if raw_prediction>=5:
             prediction=5
-        elif raw_prediction<=1:
-            prediction=1
+        elif raw_prediction<=0:
+            prediction=0
         else:
             prediction=raw_prediction
         return prediction

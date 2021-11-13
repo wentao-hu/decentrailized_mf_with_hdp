@@ -105,15 +105,17 @@ class MFModel(object):
         return sum_of_loss / num_examples
 
 
-def evaluate(model, test_ratings):
-    '''Evaluate MSE on the test dataset '''
+def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
+    '''Evaluate MSE on the test dataset,sampling method does not need to scale back '''
     square_loss = 0
+    num_test_examples=0
     for i in range(len(test_ratings)):
         (user, item, rating) = test_ratings[i]
-        prediction = model._predict_one(user, item)
-        err = rating - prediction
-        square_loss += err**2
-    num_test_examples = len(test_ratings)
+        if user in user_privacy_vector.keys() and item in item_privacy_vector.keys():
+            num_test_examples+=1
+            prediction = model._predict_one(user, item)
+            err = rating - prediction
+            square_loss += err**2
     return square_loss / num_test_examples
 
 
@@ -168,26 +170,52 @@ def main():
     dataset = Dataset_explicit(args.data)
     train_rating_matrix = dataset.trainMatrix
     test_ratings = dataset.testRatings
+    user_dict=dataset.user_dict
+    item_dict=dataset.item_dict
+    
+
+    num_users=max(max(user_dict.values()),len(user_dict))
+    num_items=max(max(item_dict.values()),len(item_dict))
     print('Dataset: #user=%d, #item=%d, #train_pairs=%d, #test_pairs=%d' %
-          (dataset.num_users, dataset.num_items, len(train_rating_matrix),
+          (num_users, num_items, len(train_rating_matrix),
            len(test_ratings)))
 
-    # Data processing
     #Determine the heterogeneous privacy weight for each trainning rating
-    # Sampling the rating with heterogeneous probability
-    user_level_list = [0.3, 0.6, 0.9]
-    item_level_list = [0.2, 0.4, 0.8]
+    user_type_list= ["conservative", "moderate", "liberal"]
+    item_privacy_list = [0.2, 0.6, 1]
+
+    user_privacy_vector={}
+    item_privacy_vector={}
+    for i in range(len(user_dict)):
+        user_type=np.random.choice(user_type_list,1,p=[0.54,0.37,0.09])
+        if user_type=="conservative":
+            user_privacy_weight=random.uniform(0.1,0.2)
+        elif user_type=="moderate":
+            user_privacy_weight=random.uniform(0.2,1)
+        else:
+            user_privacy_weight=1
+        user=user_dict[i]
+        user_privacy_vector[user]=user_privacy_weight
+    
+    for j in range(len(item_dict)):
+        item_privacy_weight=random.choice(item_privacy_list)
+        item=item_dict[j]
+        item_privacy_vector[item]=item_privacy_weight
+
+
+    max_budget = args.max_budget
     threshold = args.threshold
     sampled_index = []
     num_training_examples = len(train_rating_matrix)
-    max_budget = args.max_budget
+
+    # Sampling the rating with heterogeneous probability
     for i in range(num_training_examples):
-        user_level_weight = random.choice(user_level_list)
-        item_level_weight = random.choice(item_level_list)
-        rating_privacy_budget = user_level_weight * item_level_weight * max_budget
+        user,item=train_rating_matrix[i][0],train_rating_matrix[i][1]
+        user_privacy_weight=user_privacy_vector[user]
+        item_privacy_weight=item_privacy_vector[item]
+        rating_privacy_budget = user_privacy_weight*item_privacy_weight * max_budget
         if threshold > rating_privacy_budget:
-            sampling_probability = (np.exp(rating_privacy_budget) -
-                                    1) / (np.exp(threshold) - 1)
+            sampling_probability = (np.exp(rating_privacy_budget) -1) / (np.exp(threshold) - 1)
         else:
             sampling_probability = 1
         p = np.random.uniform(0,1)  #sample each rating w.p. sampling probability
@@ -203,13 +231,13 @@ def main():
     for row in sampled_train_rating_matrix:
         item=row[1]
         if item in num_rated_users.keys():
-                    num_rated_users[item]+=1
+            num_rated_users[item]+=1
         else:
             num_rated_users[item]=1
     
     
     # Initialize the model
-    model = MFModel(dataset.num_users, dataset.num_items, args.embedding_dim,
+    model = MFModel(num_users+1, num_items+1, args.embedding_dim,
                     args.regularization, args.stddev)
 
     training_result = []
@@ -221,7 +249,7 @@ def main():
         train_mse=round(train_mse,4)
 
         # Evaluation
-        test_mse = round(evaluate(model, test_ratings),4)
+        test_mse = round(evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector),4)
         print('Nonprivate Epoch %4d:\t trainloss=%.4f\t testloss=%.4f\t' % (epoch+1, train_mse,test_mse))
         training_result.append(["Nonprivate",epoch+1, train_mse,test_mse])
 
@@ -232,7 +260,7 @@ def main():
         train_mse=round(train_mse,4)
 
         # Evaluation
-        test_mse = round(evaluate(model, test_ratings),4)
+        test_mse = round(evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector),4)
         print('Private Epoch %4d:\t trainloss=%.4f\t testloss=%.4f\t' % (epoch+1, train_mse,test_mse))
         training_result.append(["Private", epoch+1, train_mse,test_mse])
 

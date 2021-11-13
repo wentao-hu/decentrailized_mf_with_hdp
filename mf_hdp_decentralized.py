@@ -6,11 +6,6 @@
 #     http://www.apache.org/licenses/LICENSE-2.0
 
 '''
-Modified on Oct 18, 2021
-1. Delete the bias in the model
-2. Change logistic loss to square loss for explicit feedback 
-3. Change the evaluation metrics from HR and NDCG to MSE
-4. Add Laplacian noise to the gradient in a decentralized way
 @author: Wentao Hu (stevenhwt@gmail.com)
 '''
 
@@ -40,12 +35,12 @@ class MFModel(object):
         self.embedding_dim = embedding_dim
 
     def _predict_one(self, user, item):
-        """Predicts the score of a user for an item."""
+        """Predicts the score of a user for an item"""
         raw_prediction=np.dot(self.user_embedding[user], self.item_embedding[item])
         if raw_prediction>=5:
             prediction=5
-        elif raw_prediction<=1:
-            prediction=1
+        elif raw_prediction<=0:
+            prediction=0
         else:
             prediction=raw_prediction
         return prediction
@@ -97,15 +92,24 @@ class MFModel(object):
         return sum_of_loss / num_examples
 
 
-def evaluate(model, test_ratings):
-    '''Evaluate MSE on the test dataset '''
+
+def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
+    '''Evaluate MSE on the test dataset , in HDP we should scale back using user_privacy_vector and item_privacy_vector'''
     square_loss = 0
+    num_test_examples=0
     for i in range(len(test_ratings)):
         (user, item, rating) = test_ratings[i]
-        prediction = model._predict_one(user, item)
+        if user in user_privacy_vector.keys() and item in item_privacy_vector.keys():
+            num_test_examples+=1
+            raw_prediction=np.dot(model.user_embedding[user]/user_privacy_vector[user], model.item_embedding[item]/item_privacy_vector[item])
+            if raw_prediction>=5:
+                prediction=5
+            elif raw_prediction<=1:
+                prediction=1
+            else:
+                prediction=raw_prediction
         err = rating - prediction
         square_loss += err**2
-    num_test_examples = len(test_ratings)
     return square_loss / num_test_examples
 
 
@@ -155,23 +159,48 @@ def main():
     train_rating_matrix= dataset.trainMatrix
     test_ratings = dataset.testRatings
     train_num_rated_users=dataset.train_num_rated_users
+    user_dict=dataset.user_dict
+    item_dict=dataset.item_dict
+  
+    
+    num_users=max(max(user_dict.values()),len(user_dict))
+    num_items=max(max(item_dict.values()),len(item_dict))
     print('Dataset: #user=%d, #item=%d, #train_pairs=%d, #test_pairs=%d' %
-          (dataset.num_users, dataset.num_items, len(train_rating_matrix),
-           len(test_ratings)))
+          (num_users, num_items, len(train_rating_matrix),len(test_ratings)))
 
-    #Data processing
+
     #Determine the heterogeneous privacy weight for each trainning rating
-    # And stretch the rating as the processing step
-    user_level_list = [0.3, 0.6, 0.9]
-    item_level_list = [0.2, 0.4, 0.8]
+    user_type_list= ["conservative", "moderate", "liberal"]
+    item_privacy_list = [0.2, 0.6, 1]
+
+    user_privacy_vector={}
+    item_privacy_vector={}
+    for i in range(len(user_dict)):
+        user_type=np.random.choice(user_type_list,1,p=[0.54,0.37,0.09])
+        if user_type=="conservative":
+            user_privacy_weight=random.uniform(0.1,0.2)
+        elif user_type=="moderate":
+            user_privacy_weight=random.uniform(0.2,1)
+        else:
+            user_privacy_weight=1
+        user=user_dict[i]
+        user_privacy_vector[user]=user_privacy_weight
+    
+    for j in range(len(item_dict)):
+        item_privacy_weight=random.choice(item_privacy_list)
+        item=item_dict[j]
+        item_privacy_vector[item]=item_privacy_weight
+
+    # stretch the rating as the pre-processing step
     for i in range(len(train_rating_matrix)):
-        user_level_weight = random.choice(user_level_list)
-        item_level_weight = random.choice(item_level_list)
-        rating_privacy_weight = user_level_weight * item_level_weight
+        user,item=train_rating_matrix[i][0],train_rating_matrix[i][1]
+        user_privacy_weight=user_privacy_vector[user]
+        item_privacy_weight=item_privacy_vector[item]
+        rating_privacy_weight = user_privacy_weight*item_privacy_weight
         train_rating_matrix[i][2] *= rating_privacy_weight
 
-    # Initialize the model
-    model = MFModel(dataset.num_users, dataset.num_items, args.embedding_dim,
+    # Initialize the model, need to plus 1 because the index start from 0
+    model = MFModel(num_users+1, num_items+1, args.embedding_dim,
                     args.regularization, args.stddev)
 
     #Train and evaluate the model
@@ -184,7 +213,7 @@ def main():
         train_mse=round(train_mse,4)
 
         # Evaluation
-        test_mse = round(evaluate(model, test_ratings),4)
+        test_mse = round(evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector),4)
         print('Nonprivate Epoch %4d:\t trainloss=%.4f\t testloss=%.4f\t' % (epoch+1, train_mse,test_mse))
         training_result.append(["Nonprivate",epoch+1, train_mse,test_mse])
 
@@ -195,7 +224,7 @@ def main():
         train_mse=round(train_mse,4)
 
         # Evaluation
-        test_mse = round(evaluate(model, test_ratings),4)
+        test_mse = round(evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector),4)
         print('Private Epoch %4d:\t trainloss=%.4f\t testloss=%.4f\t' % (epoch+1, train_mse,test_mse))
         training_result.append(["Private", epoch+1, train_mse,test_mse])
 

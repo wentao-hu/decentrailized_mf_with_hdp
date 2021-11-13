@@ -5,14 +5,14 @@ import os
 import csv
 import argparse
 
-training_result=[[1,2,3]]
-parser = argparse.ArgumentParser()
-parser.add_argument('--file', type=str, default='Results',
-                      help='Path to the dataset')
-args = parser.parse_args()
-t=1
-with open(f"./{args.file}/test-threshold={t}.csv", "w") as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(["privacy_mode", "epoch", "mse"])
-        for row in training_result:
-            writer.writerow(row)
+dataset = Dataset_explicit('Data/ml-1m')
+train_rating_matrix= dataset.trainMatrix
+test_ratings = dataset.testRatings
+train_num_rated_users=dataset.train_num_rated_users
+user_dict=dataset.user_dict
+item_dict=dataset.item_dict
+
+num_users=dataset.num_users
+num_items=dataset.num_items
+print(1805 in item_dict.values())
+
