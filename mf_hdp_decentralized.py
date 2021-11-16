@@ -11,10 +11,12 @@
 
 import argparse
 from random import triangular
-from Dataset_explicit import Dataset_explicit
+from dataprocess import Dataset_explicit
 import numpy as np
 import random
 import csv
+import logging 
+
 
 class MFModel(object):
     """A matrix factorization model trained using SGD."""
@@ -45,7 +47,7 @@ class MFModel(object):
             prediction=raw_prediction
         return prediction
 
-    def fit(self, private_mode, privacy_budget, train_rating_matrix,learning_rate,num_rated_users):
+    def fit(self, privacy_budget, train_rating_matrix,learning_rate,num_rated_users):
         """Trains the model for one epoch.
 
 		Args:
@@ -65,27 +67,20 @@ class MFModel(object):
         lr = learning_rate
         Delta = 4
         sum_of_loss = 0.0
+
+        h=np.random.exponential(1) #update once in one iteration
         for i in range(num_examples):
             (user, item, stretch_rating) = train_rating_matrix[i]
             prediction = self._predict_one(user, item)
-
             err_ui = stretch_rating - prediction
 
-            h=np.random.exponential(1)
+
             std=np.sqrt(1/num_rated_users[item])
             c=np.random.normal(0,std)
-            if private_mode == 0:
-                for k in range(embedding_dim):
-                    self.user_embedding[user,k] += lr * 2 * (err_ui * self.item_embedding[item][k] -
-                                        reg * self.user_embedding[user, k])
-                    #the latter part is negative gradient
-                    self.item_embedding[item,k] += lr * 2 * (err_ui * self.user_embedding[user][k] -
-                                        reg * self.item_embedding[item, k])
-            else:
-                #privately update item embedding only
-                for k in range(embedding_dim):
-                    self.item_embedding[item, k] += lr * (2 * (err_ui * self.user_embedding[user][k] - reg *self.item_embedding[item, k]) -
-                    2 * Delta*np.sqrt(2*embedding_dim*h) *c/privacy_budget)
+            #In decentralized setting, we must privately update item embedding
+            for k in range(embedding_dim):
+                self.item_embedding[item, k] += lr * (2 * (err_ui * self.user_embedding[user][k] - reg *self.item_embedding[item, k]) -
+                2 * Delta*np.sqrt(2*embedding_dim*h) *c/privacy_budget)
             sum_of_loss += err_ui**2
 
         # Return MSE on the training dataset
@@ -124,35 +119,70 @@ def main():
                         type=float,
                         default=1.0,
                         help='maximum privacy budget for all the ratings')
-
-    parser.add_argument('--nonprivate_epochs',
+    parser.add_argument('--epochs',
                         type=int,
-                        default=54,
-                        help='Number of non-private training epochs')
-
-    parser.add_argument('--private_epochs',
-                        type=int,
-                        default=54,
-                        help='Number of non-private training epochs')
-
+                        default=128,
+                        help='Number of private training epochs in a decentralized way')
     parser.add_argument('--embedding_dim',
 						type=int,
-						default=8,
-						help='Embedding dimensions, the first dimension will be '
-						'used for the bias.')
+						default=10,
+						help='Embedding dimensions')
     parser.add_argument('--regularization',
                         type=float,
-                        default=0.0,
+                        default=0.001,
                         help='L2 regularization for user and item embeddings.')
     parser.add_argument('--learning_rate',
                         type=float,
-                        default=0.001,
+                        default=0.01,
                         help='SGD step size.')
     parser.add_argument('--stddev',
                         type=float,
                         default=0.1,
                         help='Standard deviation for initialization.')
+    parser.add_argument('--fraction',
+                        type=list,
+                        default=[0.54,0.37,0.09],
+                        help='fraction for 3 types of users')
+    parser.add_argument('--bound',
+                        type=list,
+                        default=[0.1,0.2,1],
+                        help='privacy budget lower bounds for 3 user types in ascending order')
+    parser.add_argument('--item_privacy',
+                        type=list,
+                        default=[0.2, 0.6, 1],
+                        help='privacy budget list for different type of items')
+    parser.add_argument('--filename',
+                        type=str,
+                        default="./Results/hdp.csv",
+                        help='filename to store the training and testing result')
+    parser.add_argument('--logfile',
+                        type=str,
+                        default="./log/hdp.log",
+                        help='filename to store the training and testing result')
     args = parser.parse_args()
+    
+
+    #Setting the logger
+    logger = logging.getLogger(__name__)
+    logger.setLevel(level=logging.DEBUG)
+    formatter = logging.Formatter('%(asctime)s - %(name)s -%(filename)s[line:%(lineno)d]- %(levelname)s - %(message)s')
+    # FileHandler
+    file_handler = logging.FileHandler(args.logfile)
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    # StreamHandler
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+
+
+    #Start running the main procedure
+    logger.info("Start running decentralized hdpmf")
+    param_setting=f"""data={args.data} max_budget={args.max_budget} epoch={args.epochs} dim={args.embedding_dim}\
+    reg={args.regularization} lr={args.learning_rate} stddev={args.stddev} frac={args.fraction} bound={args.bound}\
+    item_privacy={args.item_privacy} results={args.filename} log={args.logfile}"""
+    logger.info(param_setting)
 
     # Load the dataset
     dataset = Dataset_explicit(args.data)
@@ -162,25 +192,26 @@ def main():
     user_dict=dataset.user_dict
     item_dict=dataset.item_dict
   
-    
     num_users=max(max(user_dict.values()),len(user_dict))
     num_items=max(max(item_dict.values()),len(item_dict))
-    print('Dataset: #user=%d, #item=%d, #train_pairs=%d, #test_pairs=%d' %
+    logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #test_pairs=%d' %
           (num_users, num_items, len(train_rating_matrix),len(test_ratings)))
 
 
     #Determine the heterogeneous privacy weight for each trainning rating
     user_type_list= ["conservative", "moderate", "liberal"]
-    item_privacy_list = [0.2, 0.6, 1]
+    user_type_fraction=args.fraction  #fraction for 3 types of users
+    user_type_bound=args.bound  #privacy budget lower bounds for 3 user types in ascending order
+    item_privacy_list = args.item_privacy
 
     user_privacy_vector={}
     item_privacy_vector={}
     for i in range(len(user_dict)):
-        user_type=np.random.choice(user_type_list,1,p=[0.54,0.37,0.09])
+        user_type=np.random.choice(user_type_list,1,p=user_type_fraction)
         if user_type=="conservative":
-            user_privacy_weight=random.uniform(0.1,0.2)
+            user_privacy_weight=random.uniform(user_type_bound[0],user_type_bound[1])
         elif user_type=="moderate":
-            user_privacy_weight=random.uniform(0.2,1)
+            user_privacy_weight=random.uniform(user_type_bound[1],user_type_bound[2])
         else:
             user_privacy_weight=1
         user=user_dict[i]
@@ -206,35 +237,27 @@ def main():
     #Train and evaluate the model
     training_result = []
 
-    for epoch in range(args.nonprivate_epochs):
-        # Non_private Training
-        private_mode = 0
-        train_mse = model.fit(private_mode,args.max_budget,train_rating_matrix,args.learning_rate,train_num_rated_users)
-        train_mse=round(train_mse,4)
+    try:
+        for epoch in range(args.epochs):
+            train_mse = model.fit(args.max_budget,train_rating_matrix,args.learning_rate,train_num_rated_users)
+            train_mse=round(train_mse,4)
 
-        # Evaluation
-        test_mse = round(evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector),4)
-        print('Nonprivate Epoch %4d:\t trainloss=%.4f\t testloss=%.4f\t' % (epoch+1, train_mse,test_mse))
-        training_result.append(["Nonprivate",epoch+1, train_mse,test_mse])
+            # Evaluation
+            test_mse = round(evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector),4)
+            logger.info('Epoch %4d:\t trainloss=%.4f\t testloss=%.4f\t' % (epoch+1, train_mse,test_mse))
+            training_result.append([epoch+1, train_mse,test_mse])
 
-    for epoch in range(args.private_epochs):
-        # Private Training
-        private_mode = 1
-        train_mse = model.fit(private_mode,args.max_budget,train_rating_matrix,args.learning_rate,train_num_rated_users)
-        train_mse=round(train_mse,4)
-
-        # Evaluation
-        test_mse = round(evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector),4)
-        print('Private Epoch %4d:\t trainloss=%.4f\t testloss=%.4f\t' % (epoch+1, train_mse,test_mse))
-        training_result.append(["Private", epoch+1, train_mse,test_mse])
-
-    #Write the training result into csv
-    with open(f"./Results/hdp_decentralized_maxbudget={args.max_budget}_nonprivnum={args.nonprivate_epochs}_privnum={args.private_epochs}.csv", "w") as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(["privacy_mode", "epoch", "train_mse","test_mse"])
-        for row in training_result:
-            writer.writerow(row)
-
+        #Write the training result into csv
+        logger.info(f"Writing results into {args.filename}")
+        with open(args.filename, "w") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["epoch", "train_mse","test_mse"])
+            for row in training_result:
+                writer.writerow(row)
+    except Exception:
+        logger.error('Something wrong', exc_info=True)
+    logger.info('Program Finished')
+    
 
 if __name__ == '__main__':
     main()

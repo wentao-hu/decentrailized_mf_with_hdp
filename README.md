@@ -20,21 +20,4 @@ Run Sampling_centralized, the following code is shown in **run_sampling_centrali
 python mf_sampling_centralized.py --data Data/ml-1m --max_budget 1 --threshold 1 --nonprivate_epochs 54 --private_epochs 54 --embedding_dim 8 --regularization 0.005 --learning_rate 0.002 --stddev 0.1
 ```
 
-
-
-
-### Dataset
-We provide two processed datasets: MovieLens 1 Million (ml-1m) and Pinterest (pinterest-20). 
-
-train.rating: 
-- Train file.
-- Each Line is a training instance: userID  itemID  rating timestamp (if have)
-
-test.rating:
-- Test file (positive instances). 
-- Each Line is a testing instance: userID   itemID rating timestamp (if have)
-
-test.negative
-- Test file (negative instances).
-- Each line corresponds to the line of test.rating, containing 99 negative samples.  
-- Each line is in the format: (userID,itemID)  negativeItemID1  negativeItemID2 ...
+## Hyperparameter tuning 
