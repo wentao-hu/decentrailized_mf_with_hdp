@@ -87,13 +87,14 @@ class MFModel(object):
             err_ui = rating - prediction
             if private_mode == 0:
                 for k in range(embedding_dim):
+                    #udpate user_embedding
                     self.user_embedding[user,k] += lr * 2 * (err_ui * self.item_embedding[item][k] -
                                         reg * self.user_embedding[user, k])
-                    #the latter part is negative gradient
+                    #update item_embedding
                     self.item_embedding[item,k] += lr * 2 * (err_ui * self.user_embedding[user][k] -
                                         reg * self.item_embedding[item, k])
             else:
-                #privately update item embedding only
+                #In private update k2, we only need to update item embedding once to make it contains less private information
                 for k in range(embedding_dim):
                     self.item_embedding[item, k] += lr * (2 * (err_ui * self.user_embedding[user][k] - reg *self.item_embedding[item, k]) 
                     - np.random.laplace(0, l1_sensitivity / privacy_budget, 1))

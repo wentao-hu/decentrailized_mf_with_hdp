@@ -39,6 +39,7 @@ class MFModel(object):
     def _predict_one(self, user, item):
         """Predicts the score of a user for an item"""
         raw_prediction=np.dot(self.user_embedding[user], self.item_embedding[item])
+        #stretch rating can approximate 0, so the lower bound is set to 0
         if raw_prediction>=5:
             prediction=5
         elif raw_prediction<=0:
@@ -56,7 +57,7 @@ class MFModel(object):
 			learning_rate: the learning rate to use.
 
 		Returns:
-			The square loss averaged across examples.
+			The absolute loss averaged across examples.
 		"""
         np.random.shuffle(train_rating_matrix)
 
@@ -68,33 +69,51 @@ class MFModel(object):
         Delta = 4
         sum_of_loss = 0.0
 
-        h=np.random.exponential(1) #update once in one iteration
+        #On user device, user embedding is updated normally by users
         for i in range(num_examples):
-            (user, item, stretch_rating) = train_rating_matrix[i]
-            prediction = self._predict_one(user, item)
-            err_ui = stretch_rating - prediction
+            (user, item, rating) = train_rating_matrix[i]
+            user_emb = self.user_embedding[user]
+            item_emb = self.item_embedding[item]
 
+            prediction = self._predict_one(user, item)
+            err_ui = rating - prediction
+            
+            sum_of_loss += abs(err_ui)   #sum error on user device and sum them
+
+            self.user_embedding[user,:] += lr * 2 * (err_ui * item_emb - reg * user_emb)
+
+        
+        #On server side, item embedding is updated aftering gathering private gradient from all users
+        h=np.random.exponential(1) #update h once in one epoch
+        for i in range(num_examples):
+            (user, item, rating) = train_rating_matrix[i]
+            user_emb = self.user_embedding[user]
+            item_emb = self.item_embedding[item]
+
+            prediction = self._predict_one(user, item)
+            err_ui = rating - prediction
 
             std=np.sqrt(1/num_rated_users[item])
-            c=np.random.normal(0,std)
-            #In decentralized setting, we must privately update item embedding
-            for k in range(embedding_dim):
-                self.item_embedding[item, k] += lr * (2 * (err_ui * self.user_embedding[user][k] - reg *self.item_embedding[item, k]) -
-                2 * Delta*np.sqrt(2*embedding_dim*h) *c/privacy_budget)
-            sum_of_loss += err_ui**2
+            c=np.random.normal(0,std,embedding_dim)
+            noise_vector=2 * Delta*np.sqrt(2*embedding_dim*h) *c/privacy_budget
 
-        # Return MSE on the training dataset
+            self.item_embedding[item,:]+=lr*(2*(err_ui*user_emb-reg*item_emb)-noise_vector)
+
+        # Return average loss on the training dataset
         return sum_of_loss / num_examples
 
 
 
 def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
-    '''Evaluate MSE on the test dataset , in HDP we should scale back using user_privacy_vector and item_privacy_vector'''
-    square_loss = 0
+    '''Evaluate loss on the test dataset , in HDP we should scale back using user_privacy_vector and item_privacy_vector'''
+    sum_of_loss = 0
     num_test_examples=0
+    train_users=user_privacy_vector.keys()
+    train_items=item_privacy_vector.keys()
     for i in range(len(test_ratings)):
         (user, item, rating) = test_ratings[i]
-        if user in user_privacy_vector.keys() and item in item_privacy_vector.keys():
+        #only consider users and items appear in training dataset,eliminate only a few
+        if user in train_users and item in train_items:
             num_test_examples+=1
             raw_prediction=np.dot(model.user_embedding[user]/user_privacy_vector[user], model.item_embedding[item]/item_privacy_vector[item])
             if raw_prediction>=5:
@@ -103,10 +122,16 @@ def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
                 prediction=1
             else:
                 prediction=raw_prediction
-        err = rating - prediction
-        square_loss += err**2
-    return square_loss / num_test_examples
+        err_ui= rating - prediction
+        sum_of_loss += abs(err_ui)
+    return sum_of_loss / num_test_examples
 
+
+def string_to_list(str):
+    '''transfer a numerical string to list, used in parse some arguments below'''
+    tmp=str.split(" ")
+    lst=[float(x) for x in tmp]
+    return lst
 
 def main():
     # Command line arguments
@@ -121,7 +146,7 @@ def main():
                         help='maximum privacy budget for all the ratings')
     parser.add_argument('--epochs',
                         type=int,
-                        default=128,
+                        default=256,
                         help='Number of private training epochs in a decentralized way')
     parser.add_argument('--embedding_dim',
 						type=int,
@@ -140,17 +165,17 @@ def main():
                         default=0.1,
                         help='Standard deviation for initialization.')
     parser.add_argument('--fraction',
-                        type=list,
-                        default=[0.54,0.37,0.09],
+                        type=str,
+                        default="0.54 0.37 0.09",
                         help='fraction for 3 types of users')
-    parser.add_argument('--bound',
-                        type=list,
-                        default=[0.1,0.2,1],
-                        help='privacy budget lower bounds for 3 user types in ascending order')
+    parser.add_argument('--user_privacy',
+                        type=str,
+                        default='0.2 0.6 1',
+                        help='privacy weight list for different type of uses')
     parser.add_argument('--item_privacy',
-                        type=list,
-                        default=[0.2, 0.6, 1],
-                        help='privacy budget list for different type of items')
+                        type=str,
+                        default="0.2 0.6 1",
+                        help='privacy weight list for different type of items')
     parser.add_argument('--filename',
                         type=str,
                         default="./Results/hdp.csv",
@@ -158,7 +183,7 @@ def main():
     parser.add_argument('--logfile',
                         type=str,
                         default="./log/hdp.log",
-                        help='filename to store the training and testing result')
+                        help='path to store the log file')
     args = parser.parse_args()
     
 
@@ -179,10 +204,7 @@ def main():
 
     #Start running the main procedure
     logger.info("Start running decentralized hdpmf")
-    param_setting=f"""data={args.data} max_budget={args.max_budget} epoch={args.epochs} dim={args.embedding_dim}\
-    reg={args.regularization} lr={args.learning_rate} stddev={args.stddev} frac={args.fraction} bound={args.bound}\
-    item_privacy={args.item_privacy} results={args.filename} log={args.logfile}"""
-    logger.info(param_setting)
+    logger.info(args)
 
     # Load the dataset
     dataset = Dataset_explicit(args.data)
@@ -199,21 +221,15 @@ def main():
 
 
     #Determine the heterogeneous privacy weight for each trainning rating
-    user_type_list= ["conservative", "moderate", "liberal"]
-    user_type_fraction=args.fraction  #fraction for 3 types of users
-    user_type_bound=args.bound  #privacy budget lower bounds for 3 user types in ascending order
-    item_privacy_list = args.item_privacy
+    user_privacy_list=string_to_list(args.user_privacy)
+    user_type_fraction=string_to_list(args.fraction)  
+    item_privacy_list = string_to_list(args.item_privacy)
 
     user_privacy_vector={}
     item_privacy_vector={}
     for i in range(len(user_dict)):
-        user_type=np.random.choice(user_type_list,1,p=user_type_fraction)
-        if user_type=="conservative":
-            user_privacy_weight=random.uniform(user_type_bound[0],user_type_bound[1])
-        elif user_type=="moderate":
-            user_privacy_weight=random.uniform(user_type_bound[1],user_type_bound[2])
-        else:
-            user_privacy_weight=1
+        tmp=np.random.choice(user_privacy_list,1,p=user_type_fraction)  #return a list at length 1
+        user_privacy_weight=tmp[0]
         user=user_dict[i]
         user_privacy_vector[user]=user_privacy_weight
     
@@ -222,7 +238,7 @@ def main():
         item=item_dict[j]
         item_privacy_vector[item]=item_privacy_weight
 
-    # stretch the rating as the pre-processing step
+    # stretch the train rating matrix
     for i in range(len(train_rating_matrix)):
         user,item=train_rating_matrix[i][0],train_rating_matrix[i][1]
         user_privacy_weight=user_privacy_vector[user]
@@ -239,19 +255,19 @@ def main():
 
     try:
         for epoch in range(args.epochs):
-            train_mse = model.fit(args.max_budget,train_rating_matrix,args.learning_rate,train_num_rated_users)
-            train_mse=round(train_mse,4)
+            train_mae = model.fit(args.max_budget,train_rating_matrix,args.learning_rate,train_num_rated_users)
+            train_mae=round(train_mae,4)
 
             # Evaluation
-            test_mse = round(evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector),4)
-            logger.info('Epoch %4d:\t trainloss=%.4f\t testloss=%.4f\t' % (epoch+1, train_mse,test_mse))
-            training_result.append([epoch+1, train_mse,test_mse])
+            test_mae = round(evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector),4)
+            logger.info('Epoch %4d:\t trainmae=%.4f\t testmae=%.4f\t' % (epoch+1, train_mae,test_mae))
+            training_result.append([epoch+1, train_mae,test_mae])
 
         #Write the training result into csv
         logger.info(f"Writing results into {args.filename}")
         with open(args.filename, "w") as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(["epoch", "train_mse","test_mse"])
+            writer.writerow(["epoch", "train_mae","test_mae"])
             for row in training_result:
                 writer.writerow(row)
     except Exception:

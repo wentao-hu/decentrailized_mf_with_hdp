@@ -73,9 +73,10 @@ class MFModel(object):
             err_ui = stretch_rating - prediction
             if private_mode == 0:
                 for k in range(embedding_dim):
+                    #update user_embedding
                     self.user_embedding[user,k] += lr * 2 * (err_ui * self.item_embedding[item][k] -
                                         reg * self.user_embedding[user, k])
-                    #the latter part is negative gradient
+                    #update item_embedding
                     self.item_embedding[item,k] += lr * 2 * (err_ui * self.user_embedding[user][k] -
                                         reg * self.item_embedding[item, k])
             else:
