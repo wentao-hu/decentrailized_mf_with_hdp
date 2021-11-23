@@ -67,7 +67,8 @@ class MFModel(object):
         embedding_dim = self.embedding_dim
         lr = learning_rate
         Delta = 4
-        sum_of_loss = 0.0
+        absolute_loss = 0.0
+        square_loss=0
 
         #On user device, user embedding is updated normally by users
         for i in range(num_examples):
@@ -78,7 +79,8 @@ class MFModel(object):
             prediction = self._predict_one(user, item)
             err_ui = rating - prediction
             
-            sum_of_loss += abs(err_ui)   #sum error on user device and sum them
+            absolute_loss += abs(err_ui)
+            square_loss+=err_ui**2   
 
             self.user_embedding[user,:] += lr * 2 * (err_ui * item_emb - reg * user_emb)
 
@@ -99,14 +101,16 @@ class MFModel(object):
 
             self.item_embedding[item,:]+=lr*(2*(err_ui*user_emb-reg*item_emb)-noise_vector)
 
-        # Return average loss on the training dataset
-        return sum_of_loss / num_examples
+        mae=absolute_loss/num_examples
+        mse=square_loss/num_examples
+        return mae,mse
 
 
 
 def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
     '''Evaluate loss on the test dataset , in HDP we should scale back using user_privacy_vector and item_privacy_vector'''
-    sum_of_loss = 0
+    absolute_loss = 0
+    square_loss=0
     num_test_examples=0
     train_users=user_privacy_vector.keys()
     train_items=item_privacy_vector.keys()
@@ -123,8 +127,12 @@ def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
             else:
                 prediction=raw_prediction
         err_ui= rating - prediction
-        sum_of_loss += abs(err_ui)
-    return sum_of_loss / num_test_examples
+        absolute_loss += abs(err_ui)
+        square_loss += err_ui**2
+
+    mae=absolute_loss/num_test_examples
+    mse=square_loss/num_test_examples
+    return mae,mse
 
 
 def string_to_list(str):
@@ -136,6 +144,7 @@ def string_to_list(str):
 def main():
     # Command line arguments
     parser = argparse.ArgumentParser()
+    #experiment setting
     parser.add_argument('--data',
 						type=str,
 						default='Data/ml-1m',
@@ -146,24 +155,8 @@ def main():
                         help='maximum privacy budget for all the ratings')
     parser.add_argument('--epochs',
                         type=int,
-                        default=256,
+                        default=60,
                         help='Number of private training epochs in a decentralized way')
-    parser.add_argument('--embedding_dim',
-						type=int,
-						default=10,
-						help='Embedding dimensions')
-    parser.add_argument('--regularization',
-                        type=float,
-                        default=0.001,
-                        help='L2 regularization for user and item embeddings.')
-    parser.add_argument('--learning_rate',
-                        type=float,
-                        default=0.01,
-                        help='SGD step size.')
-    parser.add_argument('--stddev',
-                        type=float,
-                        default=0.1,
-                        help='Standard deviation for initialization.')
     parser.add_argument('--fraction',
                         type=str,
                         default="0.54 0.37 0.09",
@@ -184,6 +177,24 @@ def main():
                         type=str,
                         default="./log/hdp.log",
                         help='path to store the log file')
+
+    # hyperparameter
+    parser.add_argument('--embedding_dim',
+						type=int,
+						default=10,
+						help='Embedding dimensions')
+    parser.add_argument('--regularization',
+                        type=float,
+                        default=0.001,
+                        help='L2 regularization for user and item embeddings.')
+    parser.add_argument('--lr_scheme',
+                        type=str,
+                        default="10 30",
+                        help='change epoch of lr,before 1st number lr=0.005,1st-2nd number lr=0.001, after 2nd number lr=0.0001')
+    parser.add_argument('--stddev',
+                        type=float,
+                        default=0.1,
+                        help='Standard deviation for initialization.')    
     args = parser.parse_args()
     
 
@@ -213,6 +224,7 @@ def main():
     train_num_rated_users=dataset.train_num_rated_users
     user_dict=dataset.user_dict
     item_dict=dataset.item_dict
+    lr_scheme=string_to_list(args.lr_scheme)
   
     num_users=max(max(user_dict.values()),len(user_dict))
     num_items=max(max(item_dict.values()),len(item_dict))
@@ -254,14 +266,32 @@ def main():
     training_result = []
 
     try:
-        for epoch in range(args.epochs):
-            train_mae = model.fit(args.max_budget,train_rating_matrix,args.learning_rate,train_num_rated_users)
-            train_mae=round(train_mae,4)
+        #5-fold cross validation
+        # cv_result=[]
+        # X=np.arange(0,len(train_rating_matrix))
+        # kf=KFold(n_splits=5,random_state=1,shuffle=True)
+        # for train_index,test_index in kf.split(X):
+        #     train_data=train_rating_matrix[train_index]
+        #     validation_data=train_rating_matrix[test_index]
 
-            # Evaluation
-            test_mae = round(evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector),4)
-            logger.info('Epoch %4d:\t trainmae=%.4f\t testmae=%.4f\t' % (epoch+1, train_mae,test_mae))
-            training_result.append([epoch+1, train_mae,test_mae])
+
+        for epoch in range(args.epochs):
+            if epoch<=lr_scheme[0]:
+                lr=0.005
+            elif epoch<=lr_scheme[1]:
+                lr=0.001
+            else:
+                lr=0.0001
+
+            train_mae,train_mse= model.fit(train_rating_matrix,lr)
+            train_mae=round(train_mae,4)
+            train_mse=round(train_mse,4)
+
+            test_mae,test_mse = evaluate(model, test_ratings,user_dict,item_dict)
+            test_mae=round(test_mae,4)
+            test_mse=round(test_mse,4)
+            logger.info('Epoch %4d:\t trainmae=%.4f\t testmae=%.4f\t trainmse=%.4f\t testmse=%.4f\t' % (epoch+1, train_mae,test_mae,train_mse,test_mse))
+            training_result.append([epoch+1,train_mae,test_mae,train_mse,test_mse])
 
         #Write the training result into csv
         logger.info(f"Writing results into {args.filename}")

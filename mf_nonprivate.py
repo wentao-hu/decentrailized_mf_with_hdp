@@ -22,6 +22,7 @@ import numpy as np
 import random
 import csv
 import logging
+from sklearn.model_selection import KFold
 
 class MFModel(object):
     """A matrix factorization model trained using SGD."""
@@ -93,7 +94,7 @@ class MFModel(object):
 
 
 def evaluate(model, test_ratings,user_dict,item_dict):
-    '''Evaluate loss on the test dataset,sampling method does not need to scale back '''
+    '''Evaluate loss on the test dataset'''
     absolute_loss = 0
     square_loss=0
     num_test_examples=0
@@ -109,8 +110,8 @@ def evaluate(model, test_ratings,user_dict,item_dict):
             absolute_loss += abs(err_ui)
             square_loss+=err_ui**2
     
-    mae=absolute_loss/num_examples
-    mse=square_loss/num_examples
+    mae=absolute_loss/num_test_examples
+    mse=square_loss/num_test_examples
     return mae,mse
 
 def string_to_list(str):
@@ -130,7 +131,7 @@ def main():
     
     parser.add_argument('--epochs',
                         type=int,
-                        default=100,
+                        default=50,
                         help='Number of private training epochs in a decentralized way')
     
     #hyperparameter setting
@@ -142,10 +143,11 @@ def main():
                         type=float,
                         default=0.001,
                         help='L2 regularization for user and item embeddings.')
-    parser.add_argument('--learning_rate',
-                        type=float,
-                        default=0.01,
-                        help='SGD step size.')
+    parser.add_argument('--lr_scheme',
+                        type=str,
+                        default="10 30",
+                        help='change epoch of lr,before 1st number lr=0.005,1st-2nd number lr=0.001, after 2nd number lr=0.0001')
+                      
     parser.add_argument('--stddev',
                         type=float,
                         default=0.1,
@@ -187,6 +189,7 @@ def main():
     test_ratings = dataset.testRatings
     user_dict=dataset.user_dict
     item_dict=dataset.item_dict
+    lr_scheme=string_to_list(args.lr_scheme)
     
 
     num_users=max(max(user_dict.values()),len(user_dict))
@@ -201,8 +204,24 @@ def main():
     training_result = []
     # Train and evaluate model
     try:
+        #5-fold cross validation
+        # cv_result=[]
+        # X=np.arange(0,len(train_rating_matrix))
+        # kf=KFold(n_splits=5,random_state=1,shuffle=True)
+        # for train_index,test_index in kf.split(X):
+        #     train_data=train_rating_matrix[train_index]
+        #     validation_data=train_rating_matrix[test_index]
+
+
         for epoch in range(args.epochs):
-            train_mae,train_mse= model.fit(train_rating_matrix,args.learning_rate)
+            if epoch<=lr_scheme[0]:
+                lr=0.005
+            elif epoch<=lr_scheme[1]:
+                lr=0.001
+            else:
+                lr=0.0001
+
+            train_mae,train_mse= model.fit(train_rating_matrix,lr)
             train_mae=round(train_mae,4)
             train_mse=round(train_mse,4)
 
