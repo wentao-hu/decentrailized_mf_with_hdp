@@ -44,13 +44,7 @@ class MFModel(object):
 
     def _predict_one(self, user, item):
         """Predicts the score of a user for an item."""
-        raw_prediction=np.dot(self.user_embedding[user], self.item_embedding[item])
-        if raw_prediction>=5:
-            prediction=5
-        elif raw_prediction<=1:
-            prediction=1
-        else:
-            prediction=raw_prediction
+        prediction=np.dot(self.user_embedding[user], self.item_embedding[item])
         return prediction
 
     def fit(self, train_rating_matrix,learning_rate):
@@ -133,6 +127,14 @@ def main():
                         type=int,
                         default=50,
                         help='Number of private training epochs in a decentralized way')
+    parser.add_argument('--filename',
+                        type=str,
+                        default="./Results/hdp.csv",
+                        help='filename to store the training and testing result')
+    parser.add_argument('--logfile',
+                        type=str,
+                        default="./log/hdp.log",
+                        help='path to store the log file')
     
     #hyperparameter setting
     parser.add_argument('--embedding_dim',
@@ -146,21 +148,11 @@ def main():
     parser.add_argument('--lr_scheme',
                         type=str,
                         default="10 30",
-                        help='change epoch of lr,before 1st number lr=0.005,1st-2nd number lr=0.001, after 2nd number lr=0.0001')
-                      
+                        help='change epoch of lr,before 1st number lr=0.005,1st-2nd number lr=0.001, after 2nd number lr=0.0001')               
     parser.add_argument('--stddev',
                         type=float,
-                        default=0.1,
+                        default=0.01,
                         help='Standard deviation for initialization.')
-
-    parser.add_argument('--filename',
-                        type=str,
-                        default="./Results/hdp.csv",
-                        help='filename to store the training and testing result')
-    parser.add_argument('--logfile',
-                        type=str,
-                        default="./log/hdp.log",
-                        help='path to store the log file')
     args = parser.parse_args()
 
 
@@ -205,32 +197,37 @@ def main():
     # Train and evaluate model
     try:
         #5-fold cross validation
-        # cv_result=[]
-        # X=np.arange(0,len(train_rating_matrix))
-        # kf=KFold(n_splits=5,random_state=1,shuffle=True)
-        # for train_index,test_index in kf.split(X):
-        #     train_data=train_rating_matrix[train_index]
-        #     validation_data=train_rating_matrix[test_index]
+        cv_result=[]
+        X=np.arange(0,len(train_rating_matrix))
+        n_splits=5
+        kf=KFold(n_splits=n_splits,random_state=1,shuffle=True)
+        mae_sum,mse_sum=0,0
+        for train_index,test_index in kf.split(X):
+            train_data=train_rating_matrix[train_index]
+            validation_data=train_rating_matrix[test_index]
 
 
-        for epoch in range(args.epochs):
-            if epoch<=lr_scheme[0]:
-                lr=0.005
-            elif epoch<=lr_scheme[1]:
-                lr=0.001
-            else:
-                lr=0.0001
+            for epoch in range(args.epochs):
+                if epoch<=lr_scheme[0]:
+                    lr=0.005
+                elif epoch<=lr_scheme[1]:
+                    lr=0.001
+                else:
+                    lr=0.0001
 
-            train_mae,train_mse= model.fit(train_rating_matrix,lr)
-            train_mae=round(train_mae,4)
-            train_mse=round(train_mse,4)
+                train_mae,train_mse= model.fit(train_data,lr)
+                train_mae=round(train_mae,4)
+                train_mse=round(train_mse,4)
 
-            test_mae,test_mse = evaluate(model, test_ratings,user_dict,item_dict)
-            test_mae=round(test_mae,4)
-            test_mse=round(test_mse,4)
-            logger.info('Epoch %4d:\t trainmae=%.4f\t testmae=%.4f\t trainmse=%.4f\t testmse=%.4f\t' % (epoch+1, train_mae,test_mae,train_mse,test_mse))
-            training_result.append([epoch+1,train_mae,test_mae,train_mse,test_mse])
-
+                test_mae,test_mse = evaluate(model, validation_data,user_dict,item_dict)
+                test_mae=round(test_mae,4)
+                test_mse=round(test_mse,4)
+                logger.info('Epoch %4d:\t trainmae=%.4f\t testmae=%.4f\t trainmse=%.4f\t testmse=%.4f\t' % (epoch+1, train_mae,test_mae,train_mse,test_mse))
+                #training_result.append([epoch+1,train_mae,test_mae,train_mse,test_mse])
+            
+            mae_sum+=test_mae
+            mse_sum+=test_mse
+        
         #Write the training result into csv
         logger.info(f"Writing results into {args.filename}")
         with open(args.filename, "w") as csvfile:

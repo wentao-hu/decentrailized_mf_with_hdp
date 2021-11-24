@@ -15,12 +15,12 @@ str1="""
 
 #self-defined command for hyperparameter tuning 
 
-
-for embedding_dim in [5,10,15,20]:
+lr_scheme="20 40"
+for embedding_dim in [2,3,4,5,10]:
     filename=f"./Results/hdp/hdp_dim={embedding_dim}.csv"
     logfile=f"./log/hdp/hdp_dim={embedding_dim}.log"
 
-    str2=f""" python mf_hdp_decentralized.py --embedding_dim {embedding_dim} --filename "{filename}" --logfile "{logfile}" """ 
+    str2=f""" python mf_hdp_decentralized.py --lr_scheme "{lr_scheme}" --embedding_dim {embedding_dim} --filename "{filename}" --logfile "{logfile}" """ 
 
     with open('run_hdp_decentralized.sh','w') as f:   
         f.write(str1+str2)

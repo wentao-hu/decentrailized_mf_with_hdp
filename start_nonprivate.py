@@ -15,7 +15,7 @@ str1="""
 #self-defined command for hyperparameter tuning 
 
 
-for embedding_dim in [5,10,15,20]:
+for embedding_dim in [2,3,4,5,10]:
     filename=f"./Results/nonprivate/nonprivate_dim={embedding_dim}.csv"
     logfile=f"./log/nonprivate/nonprivate_dim={embedding_dim}.log"
 

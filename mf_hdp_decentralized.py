@@ -16,6 +16,7 @@ import numpy as np
 import random
 import csv
 import logging 
+from sklearn.model_selection import KFold
 
 
 class MFModel(object):
@@ -38,17 +39,10 @@ class MFModel(object):
 
     def _predict_one(self, user, item):
         """Predicts the score of a user for an item"""
-        raw_prediction=np.dot(self.user_embedding[user], self.item_embedding[item])
-        #stretch rating can approximate 0, so the lower bound is set to 0
-        if raw_prediction>=5:
-            prediction=5
-        elif raw_prediction<=0:
-            prediction=0
-        else:
-            prediction=raw_prediction
+        prediction=np.dot(self.user_embedding[user], self.item_embedding[item])
         return prediction
 
-    def fit(self, privacy_budget, train_rating_matrix,learning_rate,num_rated_users):
+    def fit(self, privacy_budget, train_rating_matrix,learning_rate,num_rated_users,item_dict):
         """Trains the model for one epoch.
 
 		Args:
@@ -86,7 +80,11 @@ class MFModel(object):
 
         
         #On server side, item embedding is updated aftering gathering private gradient from all users
-        h=np.random.exponential(1) #update h once in one epoch
+        h_dict={}    #get h_j when updating item embedding v_j
+        for j in range(len(item_dict)):
+            item=item_dict[j]
+            h_dict[item]=np.random.exponential(1,embedding_dim) 
+
         for i in range(num_examples):
             (user, item, rating) = train_rating_matrix[i]
             user_emb = self.user_embedding[user]
@@ -97,6 +95,7 @@ class MFModel(object):
 
             std=np.sqrt(1/num_rated_users[item])
             c=np.random.normal(0,std,embedding_dim)
+            h=h_dict[item]
             noise_vector=2 * Delta*np.sqrt(2*embedding_dim*h) *c/privacy_budget
 
             self.item_embedding[item,:]+=lr*(2*(err_ui*user_emb-reg*item_emb)-noise_vector)
@@ -283,11 +282,11 @@ def main():
             else:
                 lr=0.0001
 
-            train_mae,train_mse= model.fit(train_rating_matrix,lr)
+            train_mae,train_mse= model.fit(args.max_budget,train_rating_matrix,lr,train_num_rated_users,item_dict)
             train_mae=round(train_mae,4)
             train_mse=round(train_mse,4)
 
-            test_mae,test_mse = evaluate(model, test_ratings,user_dict,item_dict)
+            test_mae,test_mse = evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector)
             test_mae=round(test_mae,4)
             test_mse=round(test_mse,4)
             logger.info('Epoch %4d:\t trainmae=%.4f\t testmae=%.4f\t trainmse=%.4f\t testmse=%.4f\t' % (epoch+1, train_mae,test_mae,train_mse,test_mse))

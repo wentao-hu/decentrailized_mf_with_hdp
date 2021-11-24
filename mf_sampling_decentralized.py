@@ -22,6 +22,9 @@ import numpy as np
 import random
 import csv
 import logging
+from sklearn.model_selection import KFold
+
+
 
 class MFModel(object):
     """A matrix factorization model trained using SGD."""
@@ -43,16 +46,10 @@ class MFModel(object):
 
     def _predict_one(self, user, item):
         """Predicts the score of a user for an item."""
-        raw_prediction=np.dot(self.user_embedding[user], self.item_embedding[item])
-        if raw_prediction>=5:
-            prediction=5
-        elif raw_prediction<=1:
-            prediction=1
-        else:
-            prediction=raw_prediction
+        prediction=np.dot(self.user_embedding[user], self.item_embedding[item])
         return prediction
 
-    def fit(self, privacy_budget, train_rating_matrix,learning_rate,num_rated_users):
+    def fit(self, privacy_budget, train_rating_matrix,learning_rate,num_rated_users,item_dict):
         """Trains the model for one epoch.
 
 		Args:
@@ -71,8 +68,8 @@ class MFModel(object):
         embedding_dim = self.embedding_dim
         lr = learning_rate
         Delta = 4
-        sum_of_loss = 0.0
-
+        absolute_loss = 0.0
+        square_loss=0
         #On user device, user embedding is updated normally by users
         for i in range(num_examples):
             (user, item, rating) = train_rating_matrix[i]
@@ -82,13 +79,18 @@ class MFModel(object):
             prediction = self._predict_one(user, item)
             err_ui = rating - prediction
             
-            sum_of_loss += abs(err_ui)   #sum error on user device and sum them
+            absolute_loss += abs(err_ui)   
+            square_loss+=err_ui**2
 
             self.user_embedding[user,:] += lr * 2 * (err_ui * item_emb - reg * user_emb)
 
         
         #On server side, item embedding is updated aftering gathering private gradient from all users
-        h=np.random.exponential(1) #update h once in one epoch
+        h_dict={}    #get h_j when updating item embedding v_j
+        for j in range(len(item_dict)):
+            item=item_dict[j]
+            h_dict[item]=np.random.exponential(1,embedding_dim) 
+
         for i in range(num_examples):
             (user, item, rating) = train_rating_matrix[i]
             user_emb = self.user_embedding[user]
@@ -99,17 +101,20 @@ class MFModel(object):
 
             std=np.sqrt(1/num_rated_users[item])
             c=np.random.normal(0,std,embedding_dim)
+            h=h_dict[item]
             noise_vector=2 * Delta*np.sqrt(2*embedding_dim*h) *c/privacy_budget
 
             self.item_embedding[item,:]+=lr*(2*(err_ui*user_emb-reg*item_emb)-noise_vector)
 
-        # Return average loss on the training dataset
-        return sum_of_loss / num_examples
+        mae=absolute_loss/num_examples
+        mse=square_loss/num_examples
+        return mae,mse
 
 
 def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
-    '''Evaluate MAE on the test dataset,sampling method does not need to scale back '''
-    sum_of_loss = 0
+    '''Evaluate loss on the test dataset,sampling method does not need to scale back '''
+    absolute_loss = 0.0
+    square_loss=0
     num_test_examples=0
     for i in range(len(test_ratings)):
         (user, item, rating) = test_ratings[i]
@@ -118,8 +123,13 @@ def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
             num_test_examples+=1
             prediction = model._predict_one(user, item)
             err_ui = rating - prediction
-            sum_of_loss += abs(err_ui)
-    return sum_of_loss / num_test_examples
+            absolute_loss += abs(err_ui)
+            square_loss+=err_ui**2
+
+    mae=absolute_loss/num_test_examples
+    mse=square_loss/num_test_examples
+    return mae,mse
+
 
 def string_to_list(str):
     '''transfer a numerical string to list, used in parse some arguments below'''
@@ -127,8 +137,10 @@ def string_to_list(str):
     lst=[float(x) for x in tmp]
     return lst
 
+
 def main():
     # Command line arguments
+    #experiment setting
     parser = argparse.ArgumentParser()
     parser.add_argument('--data',
 						type=str,
@@ -140,24 +152,8 @@ def main():
                         help='maximum privacy budget for all the ratings')
     parser.add_argument('--epochs',
                         type=int,
-                        default=256,
+                        default=60,
                         help='Number of private training epochs in a decentralized way')
-    parser.add_argument('--embedding_dim',
-						type=int,
-						default=10,
-						help='Embedding dimensions')
-    parser.add_argument('--regularization',
-                        type=float,
-                        default=0.001,
-                        help='L2 regularization for user and item embeddings.')
-    parser.add_argument('--learning_rate',
-                        type=float,
-                        default=0.01,
-                        help='SGD step size.')
-    parser.add_argument('--stddev',
-                        type=float,
-                        default=0.1,
-                        help='Standard deviation for initialization.')
     parser.add_argument('--fraction',
                         type=str,
                         default="0.54 0.37 0.09",
@@ -178,10 +174,30 @@ def main():
                         type=str,
                         default="./log/hdp.log",
                         help='path to store the log file')
-    # parser.add_argument('--threshold',
-    #                     type=float,
-    #                     default=1,
-    #                     help='special hyperparameter for sampling mechanism')
+
+    # hyperparameter
+    parser.add_argument('--embedding_dim',
+						type=int,
+						default=10,
+						help='Embedding dimensions')
+    parser.add_argument('--regularization',
+                        type=float,
+                        default=0.001,
+                        help='L2 regularization for user and item embeddings.')
+    parser.add_argument('--lr_scheme',
+                        type=str,
+                        default="10 30",
+                        help='change epoch of lr,before 1st number lr=0.005,1st-2nd number lr=0.001, after 2nd number lr=0.0001')
+    parser.add_argument('--stddev',
+                        type=float,
+                        default=0.1,
+                        help='Standard deviation for initialization.')
+
+    #special hyperparameter for sampling mechanism
+    parser.add_argument('--strategy',
+                         type=str,
+                         default="mean",
+                         help='threshold strategy for sampling mechanism')
     args = parser.parse_args()
 
 
@@ -210,7 +226,8 @@ def main():
     test_ratings = dataset.testRatings
     user_dict=dataset.user_dict
     item_dict=dataset.item_dict
-    
+    lr_scheme=string_to_list(args.lr_scheme)
+
 
     num_users=max(max(user_dict.values()),len(user_dict))
     num_items=max(max(item_dict.values()),len(item_dict))
@@ -237,11 +254,10 @@ def main():
 
 
     max_budget = args.max_budget
-    # threshold = args.threshold
     sampled_index = []
     num_training_examples = len(train_rating_matrix)
 
-    #get the mean privacy budget to use as threshold
+    #get the sampling threshold according to sampling stategy
     sum_budget=0
     for i in range(num_training_examples):
         user,item=train_rating_matrix[i][0],train_rating_matrix[i][1]
@@ -249,8 +265,15 @@ def main():
         item_privacy_weight=item_privacy_vector[item]
         rating_privacy_budget = user_privacy_weight*item_privacy_weight * max_budget
         sum_budget+=rating_privacy_budget
-    threshold=sum_budget/num_training_examples
-    logger.info(f"sampling threshold in mean strategy={threshold}")
+    
+    if args.strategy=="mean":
+        threshold=sum_budget/num_training_examples
+    elif args.strategy=="min":
+        threshold=user_privacy_list[0]*item_privacy_list[0]
+    else:
+        threshold=user_privacy_list[-1]*item_privacy_list[-1]
+    
+    logger.info(f"threshold in {args.strategy} strategy={threshold}")
 
     # Sampling the rating with heterogeneous probability
     for i in range(num_training_examples):
@@ -269,15 +292,17 @@ def main():
     sampled_train_rating_matrix = [
         train_rating_matrix[i] for i in sampled_index
     ]
-    
-    num_rated_users={}
+    logger.info(f"the size of sampled training dataset: {len(sampled_train_rating_matrix)}")
+
+
     #compute the number of rated users for each item in the sampled rating matrix
+    sampled_num_rated_users={}
     for row in sampled_train_rating_matrix:
         item=row[1]
-        if item in num_rated_users.keys():
-            num_rated_users[item]+=1
+        if item in sampled_num_rated_users.keys():
+            sampled_num_rated_users[item]+=1
         else:
-            num_rated_users[item]=1
+            sampled_num_rated_users[item]=1
     
     
     # Initialize the model
@@ -288,14 +313,23 @@ def main():
     # Train and evaluate model
     try:
         for epoch in range(args.epochs):
-            # Private Training
-            train_mae= model.fit(threshold,sampled_train_rating_matrix,args.learning_rate,num_rated_users)
+            if epoch<=lr_scheme[0]:
+                lr=0.005
+            elif epoch<=lr_scheme[1]:
+                lr=0.001
+            else:
+                lr=0.0001
+
+            train_mae,train_mse= model.fit(threshold,sampled_train_rating_matrix,lr,sampled_num_rated_users,item_dict)
             train_mae=round(train_mae,4)
+            train_mse=round(train_mse,4)
 
             # Evaluation
-            test_mae = round(evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector),4)
-            logger.info('Epoch %4d:\t trainmae=%.4f\t testmae=%.4f\t' % (epoch+1, train_mae,test_mae))
-            training_result.append([epoch+1, train_mae,test_mae])
+            test_mae,test_mse = evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector)
+            test_mae=round(test_mae,4)
+            test_mse=round(test_mse,4)
+            logger.info('Epoch %4d:\t trainmae=%.4f\t testmae=%.4f\t trainmse=%.4f\t testmse=%.4f\t' % (epoch+1, train_mae,test_mae,train_mse,test_mse))
+            training_result.append([epoch+1,train_mae,test_mae,train_mse,test_mse])
 
         #Write the training result into csv
         logger.info(f"Writing results into {args.filename}")
