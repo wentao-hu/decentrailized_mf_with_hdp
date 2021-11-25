@@ -53,24 +53,24 @@ def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
 
 def get_threshold(ratingList,user_privacy_vector,item_privacy_vector,max_budget,strategy):
     #get the sampling threshold according to sampling stategy
-    sum_budget=0
-    min_budget=9999
-    max_budget=-9999
+    sum_privacy=0
+    min_privacy=9999
+    max_privacy=-9999
     for i in range(len(ratingList)):
         user,item=ratingList[i][0],ratingList[i][1]
         user_privacy_weight=user_privacy_vector[user]
         item_privacy_weight=item_privacy_vector[item]
         rating_privacy_budget = user_privacy_weight*item_privacy_weight * max_budget
-        sum_budget+=rating_privacy_budget
-        min_budget=min(min_budget,rating_privacy_budget)
-        max_budget=max(max_budget,rating_privacy_budget)
+        sum_privacy+=rating_privacy_budget
+        min_privacy=min(min_privacy,rating_privacy_budget)
+        max_privacy=max(max_privacy,rating_privacy_budget)
     
     if strategy=="mean":
-        threshold=sum_budget/len(ratingList)
+        threshold=sum_privacy/len(ratingList)
     elif strategy=="min":
-        threshold=min_budget
+        threshold=min_privavy
     else:
-        threshold=max_budget
+        threshold=max_privacy
     return threshold
 
 
@@ -99,16 +99,16 @@ def get_sampled_ratings(ratingList,threshold,max_budget,user_privacy_vector,item
 def main():
     # Command line arguments
     parser = argparse.ArgumentParser()
+    parser.add_argument('--mode',
+            type=str,
+            default="cv",
+            help='cv means cross-validation mode, test means utilizing the best hyperparameter to evaluate on test ratings')
+
     #special hyperparameter for sampling mechanism
     parser.add_argument('--strategy',
                          type=str,
                          default="mean",
                          help='threshold strategy for sampling mechanism')
-
-    parser.add_argument('--mode',
-                type=str,
-                default="cv",
-                help='cv means cross-validation mode, test means utilizing the best hyperparameter to evaluate on test ratings')
      # hyperparameter
     parser.add_argument('--embedding_dim',
 						type=int,
@@ -198,25 +198,26 @@ def main():
         if args.mode=="cv":
         #5-fold cross validation
             cv_result=[]
-            X=np.arange(0,len(sampled_train_rating_matrix))
+            X=np.arange(0,len(train_ratings))
             n_splits=5
             kf=KFold(n_splits=n_splits,random_state=1,shuffle=True)
             sum_mae,sum_mse=0,0
             for train_index,test_index in kf.split(X):
-                train_data=[sampled_train_rating_matrix[i] for i in train_index]
-                validation_data=[sampled_train_rating_matrix[j] for j in test_index]
+                train_data=[train_ratings[i] for i in train_index]
+                validation_data=[train_ratings[j] for j in test_index]
 
                 user_dict,item_dict=get_user_and_item_dict(train_data)
                 num_users=max(max(user_dict.values()),len(user_dict))
                 num_items=max(max(item_dict.values()),len(item_dict))
-                logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #val_pairs=%d' %
-                    (num_users, num_items, len(train_data),len(validation_data)))
+                logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #test_pairs=%d' %
+                    (num_users, num_items, len(train_ratings),len(test_ratings)))
 
                 user_privacy_vector,item_privacy_vector=get_privacy_vector(user_dict,item_dict,user_privacy_list,user_type_fraction,item_privacy_list)
                 threshold=get_threshold(train_data,user_privacy_vector,item_privacy_vector,args.max_budget,args.strategy)
+                #get the sampling threshold according to sampling stategy
                 logger.info(f"threshold in {args.strategy} strategy={threshold}")
 
-                sampled_ratings=get_sampled_ratings(train_data,threshold,args.max_budget, user_privacy_vector,item_privacy_vector)
+                sampled_ratings=get_sampled_ratings(train_data,threshold,args.max_budget,user_privacy_vector,item_privacy_vector)
                 logger.info(f"the size of sampled training dataset: {len(sampled_ratings)}")
 
                 #compute the number of rated users for each item in the sampled ratings
@@ -234,7 +235,7 @@ def main():
                     else:
                         lr=0.0001
 
-                    train_mae,train_mse= model.fit(threshold,train_data,lr,sampled_num_rated_users,item_dict)
+                    train_mae,train_mse= model.fit(threshold,sampled_ratings,lr,sampled_num_rated_users,item_dict)
                     train_mae=round(train_mae,4)
                     train_mse=round(train_mse,4)
 
@@ -242,7 +243,7 @@ def main():
                     test_mae=round(test_mae,4)
                     test_mse=round(test_mse,4)
                     if epoch%5==0 or epoch==args.epochs-1: 
-                        logger.info('Epoch %4d:\t trainmae=%.4f\t testmae=%.4f\t trainmse=%.4f\t valmse=%.4f\t' % (epoch, train_mae,test_mae,train_mse,test_mse))
+                        logger.info('Epoch %4d:\t trainmae=%.4f\t valmae=%.4f\t trainmse=%.4f\t valmse=%.4f\t' % (epoch, train_mae,test_mae,train_mse,test_mse))
                 
                 sum_mae+=test_mae  #add the final mae
                 sum_mse+=test_mse
@@ -259,6 +260,7 @@ def main():
                     writer.writerow(row)
 
 
+
         if args.mode=="test":
             user_dict,item_dict=get_user_and_item_dict(train_ratings)
             num_users=max(max(user_dict.values()),len(user_dict))
@@ -267,8 +269,8 @@ def main():
                 (num_users, num_items, len(train_ratings),len(test_ratings)))
 
             user_privacy_vector,item_privacy_vector=get_privacy_vector(user_dict,item_dict,user_privacy_list,user_type_fraction,item_privacy_list)
-            logger.info(f"{user_privacy_vector} {item_privacy_vector}")
             threshold=get_threshold(train_ratings,user_privacy_vector,item_privacy_vector,args.max_budget,args.strategy)
+            #get the sampling threshold according to sampling stategy
             logger.info(f"threshold in {args.strategy} strategy={threshold}")
 
             sampled_ratings=get_sampled_ratings(train_ratings,threshold,args.max_budget,user_privacy_vector,item_privacy_vector)
