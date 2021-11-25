@@ -18,9 +18,9 @@ train_rating_matrix = dataset.trainMatrix
 X=np.arange(0,len(train_rating_matrix))
 kf=KFold(n_splits=5,random_state=1,shuffle=True)
 for train_index,test_index in kf.split(X):
-    print(len(train_index),len(test_index))
-    print("Train:",train_index,"Test",test_index)
-
+    train_data=[train_rating_matrix[i] for i in train_index]
+    validation_data=[train_rating_matrix[j] for j in test_index]
+    print(len(train_data),len(validation_data))
 
 
 

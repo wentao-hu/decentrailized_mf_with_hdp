@@ -17,7 +17,7 @@
 
 import argparse
 from random import triangular
-from dataprocess import Dataset_explicit
+from dataprocess import *
 import numpy as np
 import random
 import csv
@@ -27,16 +27,6 @@ from sklearn.model_selection import KFold
 class MFModel(object):
     """A matrix factorization model trained using SGD."""
     def __init__(self, num_user, num_item, embedding_dim, reg, stddev):
-        """Initializes MFModel.
-
-    Args:
-      num_user: the total number of users.
-      num_item: the total number of items.
-      embedding_dim: the embedding dimension.
-      reg: the regularization coefficient.
-      stddev: embeddings are initialized from a random distribution with this
-        standard deviation.
-    """
         self.user_embedding = np.random.normal(0, stddev,(num_user, embedding_dim))
         self.item_embedding = np.random.normal(0, stddev,(num_item, embedding_dim))
         self.reg = reg
@@ -48,18 +38,8 @@ class MFModel(object):
         return prediction
 
     def fit(self, train_rating_matrix,learning_rate):
-        """Nonprivately Train the model for one epoch.
-		Args:
-			train_rating_matrix: a nested list, each secondary list representing a positive
-				user-item pair and their rating.
-			learning_rate: the learning rate to use.
-
-		Returns:
-			The absolute loss averaged across examples.
-		"""
         np.random.shuffle(train_rating_matrix)
 
-        # Iterate over all examples and perform one SGD step.
         num_examples = len(train_rating_matrix)
         reg = self.reg
         embedding_dim = self.embedding_dim
@@ -67,7 +47,7 @@ class MFModel(object):
         absolute_loss = 0.0
         square_loss=0
 
-        #On user device, user embedding is updated normally by users
+        #nonprivate update
         for i in range(num_examples):
             (user, item, rating) = train_rating_matrix[i]
             user_emb = self.user_embedding[user]
@@ -77,7 +57,7 @@ class MFModel(object):
             err_ui = rating - prediction
             
             absolute_loss += abs(err_ui)   
-            square_loss+=(err_ui)**2
+            square_loss += err_ui**2
 
             self.user_embedding[user,:] += lr * 2 * (err_ui * item_emb - reg * user_emb)
             self.item_embedding[item,:]+=lr*2*(err_ui*user_emb-reg*item_emb)
@@ -100,6 +80,10 @@ def evaluate(model, test_ratings,user_dict,item_dict):
         if user in train_users and item in train_items:
             num_test_examples+=1
             prediction = model._predict_one(user, item)
+            if prediction>=5:
+                prediction=5
+            if prediction<=1:
+                prediction=1
             err_ui = rating - prediction
             absolute_loss += abs(err_ui)
             square_loss+=err_ui**2
@@ -108,24 +92,43 @@ def evaluate(model, test_ratings,user_dict,item_dict):
     mse=square_loss/num_test_examples
     return mae,mse
 
-def string_to_list(str):
-    '''transfer a numerical string to list, used in parse some arguments below'''
-    tmp=str.split(" ")
-    lst=[float(x) for x in tmp]
-    return lst
+
 
 def main():
     # Command line arguments
     parser = argparse.ArgumentParser()
+    #running mode
+    parser.add_argument('--mode',
+						type=str,
+						default="cv",
+						help='cv means cross-validation mode, test means using the best hyperparameter to evaluate on test ratings')
+
+    #hyperparameter setting
+    parser.add_argument('--lr_scheme',
+                        type=str,
+                        default="20 40",
+                        help='change epoch of lr,before 1st number lr=0.005,1st-2nd number lr=0.001, after 2nd number lr=0.0001')  
+    parser.add_argument('--embedding_dim',
+						type=int,
+						default=10,
+						help='Embedding dimensions')
+    parser.add_argument('--regularization',
+                        type=float,
+                        default=0.001,
+                        help='L2 regularization for user and item embeddings.')             
+    parser.add_argument('--stddev',
+                        type=float,
+                        default=0.01,
+                        help='Standard deviation for initialization.')
+
     #experiment setting
     parser.add_argument('--data',
 						type=str,
 						default='Data/ml-1m',
-						help='Path to the dataset')
-    
+						help='Path to the dataset') 
     parser.add_argument('--epochs',
                         type=int,
-                        default=50,
+                        default=60,
                         help='Number of private training epochs in a decentralized way')
     parser.add_argument('--filename',
                         type=str,
@@ -135,24 +138,7 @@ def main():
                         type=str,
                         default="./log/hdp.log",
                         help='path to store the log file')
-    
-    #hyperparameter setting
-    parser.add_argument('--embedding_dim',
-						type=int,
-						default=10,
-						help='Embedding dimensions')
-    parser.add_argument('--regularization',
-                        type=float,
-                        default=0.001,
-                        help='L2 regularization for user and item embeddings.')
-    parser.add_argument('--lr_scheme',
-                        type=str,
-                        default="10 30",
-                        help='change epoch of lr,before 1st number lr=0.005,1st-2nd number lr=0.001, after 2nd number lr=0.0001')               
-    parser.add_argument('--stddev',
-                        type=float,
-                        default=0.01,
-                        help='Standard deviation for initialization.')
+
     args = parser.parse_args()
 
 
@@ -177,36 +163,79 @@ def main():
 
     # Load the dataset
     dataset = Dataset_explicit(args.data)
-    train_rating_matrix = dataset.trainMatrix
+    train_ratings = dataset.trainMatrix
     test_ratings = dataset.testRatings
-    user_dict=dataset.user_dict
-    item_dict=dataset.item_dict
-    lr_scheme=string_to_list(args.lr_scheme)
     
-
-    num_users=max(max(user_dict.values()),len(user_dict))
-    num_items=max(max(item_dict.values()),len(item_dict))
-    logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #test_pairs=%d' %
-          (num_users, num_items, len(train_rating_matrix),len(test_ratings)))
-    
-    # Initialize the model
-    model = MFModel(num_users+1, num_items+1, args.embedding_dim,
-                    args.regularization, args.stddev)
-
-    training_result = []
-    # Train and evaluate model
     try:
-        #5-fold cross validation
-        cv_result=[]
-        X=np.arange(0,len(train_rating_matrix))
-        n_splits=5
-        kf=KFold(n_splits=n_splits,random_state=1,shuffle=True)
-        mae_sum,mse_sum=0,0
-        for train_index,test_index in kf.split(X):
-            train_data=train_rating_matrix[train_index]
-            validation_data=train_rating_matrix[test_index]
+        if args.mode=="cv":
+            #5-fold cross validation
+            cv_result=[]
+            X=np.arange(0,len(train_ratings))
+            n_splits=5
+            kf=KFold(n_splits=n_splits,random_state=1,shuffle=True)
+            sum_mae,sum_mse=0,0
+            for train_index,test_index in kf.split(X):
+                train_data=[train_ratings[i] for i in train_index]
+                validation_data=[train_ratings[j] for j in test_index]
+
+                user_dict,item_dict=get_user_and_item_dict(validation_data)
+                num_users=max(max(user_dict.values()),len(user_dict))
+                num_items=max(max(item_dict.values()),len(item_dict))
+                logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #validation_pairs=%d' %
+                    (num_users, num_items, len(train_data),len(validation_data)))
+
+                # Initialize the model, need to plus 1 because the index start from 0
+                model = MFModel(num_users+1, num_items+1, args.embedding_dim,
+                                args.regularization, args.stddev)
+
+                #train the model
+                for epoch in range(args.epochs):
+                    if epoch<=lr_scheme[0]:
+                        lr=0.005
+                    elif epoch<=lr_scheme[1]:
+                        lr=0.001
+                    else:
+                        lr=0.0001
+
+                    train_mae,train_mse= model.fit(train_data,lr)
+                    train_mae=round(train_mae,4)
+                    train_mse=round(train_mse,4)
+
+                    test_mae,test_mse = evaluate(model, validation_data,user_dict,item_dict)
+                    test_mae=round(test_mae,4)
+                    test_mse=round(test_mse,4)
+                    if epoch%5==0 or epoch==args.epochs-1:
+                        logger.info('Epoch %4d:\t trainmae=%.4f\t valmae=%.4f\t trainmse=%.4f\t valmse=%.4f\t' % (epoch, train_mae,test_mae,train_mse,test_mse))
+                
+                sum_mae+=test_mae  #add the final mae
+                sum_mse+=test_mse
+
+            avg_mae=sum_mae/n_splits  
+            avg_mse=sum_mse/n_splits
+            cv_result.append([avg_mae,avg_mse])
+            #Write cross_validation result into csv
+            logger.info(f"Writing {args.mode} results into {args.filename}")
+            with open(args.filename, "w") as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(["avg_mae,avg_mse"])
+                for row in cv_result:
+                    writer.writerow(row)
 
 
+        if args.mode=="test":
+            train_num_rated_users=get_num_rated_user(train_ratings)
+            user_dict,item_dict=get_user_and_item_dict(train_ratings)
+            
+            num_users=max(max(user_dict.values()),len(user_dict))
+            num_items=max(max(item_dict.values()),len(item_dict))
+            logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #test_pairs=%d' %
+                (num_users, num_items, len(train_ratings),len(test_ratings)))
+
+            # Initialize the model
+            model = MFModel(num_users+1, num_items+1, args.embedding_dim,
+                            args.regularization, args.stddev)
+            # Train and evaluate model
+            training_result = []
             for epoch in range(args.epochs):
                 if epoch<=lr_scheme[0]:
                     lr=0.005
@@ -215,26 +244,24 @@ def main():
                 else:
                     lr=0.0001
 
-                train_mae,train_mse= model.fit(train_data,lr)
+                train_mae,train_mse= model.fit(train_ratings,lr)
                 train_mae=round(train_mae,4)
                 train_mse=round(train_mse,4)
 
-                test_mae,test_mse = evaluate(model, validation_data,user_dict,item_dict)
+                test_mae,test_mse = evaluate(model,test_ratings,user_dict,item_dict)
                 test_mae=round(test_mae,4)
                 test_mse=round(test_mse,4)
                 logger.info('Epoch %4d:\t trainmae=%.4f\t testmae=%.4f\t trainmse=%.4f\t testmse=%.4f\t' % (epoch+1, train_mae,test_mae,train_mse,test_mse))
-                #training_result.append([epoch+1,train_mae,test_mae,train_mse,test_mse])
-            
-            mae_sum+=test_mae
-            mse_sum+=test_mse
-        
-        #Write the training result into csv
-        logger.info(f"Writing results into {args.filename}")
-        with open(args.filename, "w") as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(["epoch", "train_mae","test_mae","train_mse","test_mse"])
-            for row in training_result:
-                writer.writerow(row)
+                training_result.append([epoch+1,train_mae,test_mae,train_mse,test_mse])
+
+
+            logger.info(f"Writing {args.mode} results into {args.filename}")
+            with open(args.filename, "w") as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(["epoch", "train_mae","test_mae","train_mse","test_mse"])
+                for row in training_result:
+                    writer.writerow(row)
+
     except Exception:
         logger.error('Something wrong', exc_info=True)
     logger.info('Program Finished')
