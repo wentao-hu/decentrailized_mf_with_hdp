@@ -4,27 +4,16 @@ author:Wentao Hu
 
 import numpy as np
 
-
-class Dataset_explicit(object):
-    def __init__(self, path):
-        '''
-        Constructor
-        '''
-        self.trainMatrix= self.load_rating_file_as_list(
-            path + ".train.rating")
-        self.testRatings= self.load_rating_file_as_list(
-            path + ".test.rating")
-
-    def load_rating_file_as_list(self, filename):        
-        ratingList = []
-        with open(filename, "r") as f:
-            line = f.readline()
-            while line != None and line != "":
-                arr = line.split("\t")
-                user, item, rating = int(arr[0]), int(arr[1]), int(arr[2])
-                ratingList.append([user, item, rating])             
-                line = f.readline()   
-        return ratingList
+def load_rating_file_as_list(filename):        
+    ratingList = []
+    with open(filename, "r") as f:
+        line = f.readline()
+        while line != None and line != "":
+            arr = line.split("\t")
+            user, item, rating = int(arr[0]), int(arr[1]), int(arr[2])
+            ratingList.append([user, item, rating])             
+            line = f.readline()   
+    return ratingList
 
 
 def get_user_and_item_dict(ratingList):

@@ -124,7 +124,7 @@ def main():
     #experiment setting
     parser.add_argument('--data',
 						type=str,
-						default='Data/ml-1m',
+						default='Data/ml-100k',
 						help='Path to the dataset') 
     parser.add_argument('--epochs',
                         type=int,
@@ -160,25 +160,19 @@ def main():
     logger.info("Start running nonprivate mf")
     logger.info(args)
 
-
-    # Load the dataset
-    dataset = Dataset_explicit(args.data)
-    train_ratings = dataset.trainMatrix
-    test_ratings = dataset.testRatings
     
     try:
         if args.mode=="cv":
             #5-fold cross validation
-            cv_result=[]
-            X=np.arange(0,len(train_ratings))
-            n_splits=5
-            kf=KFold(n_splits=n_splits,random_state=1,shuffle=True)
+            cv_result=[] 
             sum_mae,sum_mse=0,0
-            for train_index,test_index in kf.split(X):
-                train_data=[train_ratings[i] for i in train_index]
-                validation_data=[train_ratings[j] for j in test_index]
+            for i in range(1,6):
+                logger.info(f"dataset: {args.data}/u{i}.base  {args.data}/u{i}.test")
+                #load data
+                train_data=load_rating_file_as_list(f"{args.data}/u{i}.base")
+                validation_data=load_rating_file_as_list(f"{args.data}/u{i}.test")
 
-                user_dict,item_dict=get_user_and_item_dict(validation_data)
+                user_dict,item_dict=get_user_and_item_dict(train_data) 
                 num_users=max(max(user_dict.values()),len(user_dict))
                 num_items=max(max(item_dict.values()),len(item_dict))
                 logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #validation_pairs=%d' %
@@ -204,28 +198,32 @@ def main():
                     test_mae,test_mse = evaluate(model, validation_data,user_dict,item_dict)
                     test_mae=round(test_mae,4)
                     test_mse=round(test_mse,4)
-                    if epoch%5==0 or epoch==args.epochs-1:
-                        logger.info('Epoch %4d:\t trainmae=%.4f\t valmae=%.4f\t trainmse=%.4f\t valmse=%.4f\t' % (epoch, train_mae,test_mae,train_mse,test_mse))
+                    # if epoch%5==0 or epoch==args.epochs-1:
+                    logger.info('Epoch %4d:\t trainmae=%.4f\t valmae=%.4f\t trainmse=%.4f\t valmse=%.4f\t' % (epoch, train_mae,test_mae,train_mse,test_mse))
                 
+                cv_result.append([i,test_mae,test_mse])
                 sum_mae+=test_mae  #add the final mae
                 sum_mse+=test_mse
 
-            avg_mae=sum_mae/n_splits  
-            avg_mse=sum_mse/n_splits
-            cv_result.append([avg_mae,avg_mse])
+            avg_mae=sum_mae/5  
+            avg_mse=sum_mse/5
+            cv_result.append(["avg",avg_mae,avg_mse])
             #Write cross_validation result into csv
             logger.info(f"Writing {args.mode} results into {args.filename}")
             with open(args.filename, "w") as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow(["avg_mae,avg_mse"])
+                writer.writerow(["round","valmae","valmse"])
                 for row in cv_result:
                     writer.writerow(row)
 
 
+
         if args.mode=="test":
-            train_num_rated_users=get_num_rated_user(train_ratings)
+            #load data
+            train_ratings=load_rating_file_as_list(f"{args.data}/ua.base")
+            test_ratings=load_rating_file_as_list(f"{args.data}/ua.test")   
             user_dict,item_dict=get_user_and_item_dict(train_ratings)
-            
+
             num_users=max(max(user_dict.values()),len(user_dict))
             num_items=max(max(item_dict.values()),len(item_dict))
             logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #test_pairs=%d' %

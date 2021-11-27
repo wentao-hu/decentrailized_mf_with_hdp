@@ -183,11 +183,6 @@ def main():
     logger.info(args)
 
 
-    # Load the dataset
-    dataset = Dataset_explicit(args.data)
-    train_ratings = dataset.trainMatrix
-    test_ratings = dataset.testRatings
-
     lr_scheme=string_to_list(args.lr_scheme)
     user_privacy_list=string_to_list(args.user_privacy)
     user_type_fraction=string_to_list(args.fraction)  
@@ -197,20 +192,19 @@ def main():
     try:
         if args.mode=="cv":
         #5-fold cross validation
-            cv_result=[]
-            X=np.arange(0,len(train_ratings))
-            n_splits=5
-            kf=KFold(n_splits=n_splits,random_state=1,shuffle=True)
+            cv_result=[] 
             sum_mae,sum_mse=0,0
-            for train_index,test_index in kf.split(X):
-                train_data=[train_ratings[i] for i in train_index]
-                validation_data=[train_ratings[j] for j in test_index]
+            for i in range(1,6):
+                logger.info(f"dataset: {args.data}/u{i}.base  {args.data}/u{i}.test")
+                train_data=load_rating_file_as_list(f"{args.data}/u{i}.base")
+                validation_data=load_rating_file_as_list(f"{args.data}/u{i}.test")
 
-                user_dict,item_dict=get_user_and_item_dict(train_data)
+                user_dict,item_dict=get_user_and_item_dict(train_data) 
                 num_users=max(max(user_dict.values()),len(user_dict))
                 num_items=max(max(item_dict.values()),len(item_dict))
-                logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #test_pairs=%d' %
-                    (num_users, num_items, len(train_ratings),len(test_ratings)))
+                logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #validation_pairs=%d' %
+                    (num_users, num_items, len(train_data),len(validation_data)))
+
 
                 user_privacy_vector,item_privacy_vector=get_privacy_vector(user_dict,item_dict,user_privacy_list,user_type_fraction,item_privacy_list)
                 threshold=get_threshold(train_data,user_privacy_vector,item_privacy_vector,args.max_budget,args.strategy)
@@ -245,24 +239,28 @@ def main():
                     if epoch%5==0 or epoch==args.epochs-1: 
                         logger.info('Epoch %4d:\t trainmae=%.4f\t valmae=%.4f\t trainmse=%.4f\t valmse=%.4f\t' % (epoch, train_mae,test_mae,train_mse,test_mse))
                 
+                cv_result.append([i,test_mae,test_mse])
                 sum_mae+=test_mae  #add the final mae
                 sum_mse+=test_mse
-            
-            avg_mae=sum_mae/n_splits  
-            avg_mse=sum_mse/n_splits
-            cv_result.append([avg_mae,avg_mse])
+
+            avg_mae=sum_mae/5  
+            avg_mse=sum_mse/5
+            cv_result.append(["avg",avg_mae,avg_mse])
             #Write cross_validation result into csv
             logger.info(f"Writing {args.mode} results into {args.filename}")
             with open(args.filename, "w") as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow(["avg_mae,avg_mse"])
+                writer.writerow(["round","valmae","valmse"])
                 for row in cv_result:
                     writer.writerow(row)
 
 
-
         if args.mode=="test":
+            train_ratings=load_rating_file_as_list(f"{args.data}/ua.base")
+            test_ratings=load_rating_file_as_list(f"{args.data}/ua.test")
+            
             user_dict,item_dict=get_user_and_item_dict(train_ratings)
+
             num_users=max(max(user_dict.values()),len(user_dict))
             num_items=max(max(item_dict.values()),len(item_dict))
             logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #test_pairs=%d' %

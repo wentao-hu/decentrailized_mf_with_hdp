@@ -16,9 +16,7 @@ import random
 import csv
 import logging 
 from sklearn.model_selection import KFold
-from utils_private import MFModel
-from utils_private import string_to_list
-from utils_hdp import *
+from utils_private import *
 
 #For evaluating on test ratings in HDP mechanism
 def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
@@ -59,7 +57,7 @@ def stretch_rating(ratingList,user_privacy_vector,item_privacy_vector):
         rating_privacy_weight = user_privacy_weight*item_privacy_weight
         ratingList[i][2] *= rating_privacy_weight
 
-    return ratingList,user_privacy_vector,item_privacy_vector
+    return ratingList
 
 
 def main():
@@ -73,7 +71,7 @@ def main():
     #experiment setting  
     parser.add_argument('--data',
 						type=str,
-						default='Data/ml-1m',
+						default='Data/ml-100k',
 						help='Path to the dataset')
     parser.add_argument('--max_budget',
                         type=float,
@@ -115,7 +113,7 @@ def main():
                         help='L2 regularization for user and item embeddings.')
     parser.add_argument('--lr_scheme',
                         type=str,
-                        default="10 30",
+                        default="20 40",
                         help='change epoch of lr,before 1st number lr=0.005,1st-2nd number lr=0.001, after 2nd number lr=0.0001')
     parser.add_argument('--stddev',
                         type=float,
@@ -144,9 +142,6 @@ def main():
     logger.info(args)
 
     # Load the dataset  
-    dataset = Dataset_explicit(args.data)
-    train_ratings= dataset.trainMatrix
-    test_ratings = dataset.testRatings
     user_privacy_list=string_to_list(args.user_privacy)
     user_type_fraction=string_to_list(args.fraction)  
     item_privacy_list = string_to_list(args.item_privacy)
@@ -155,18 +150,14 @@ def main():
     try:
         if args.mode=="cv":
             #5-fold cross validation
-            cv_result=[]
-            X=np.arange(0,len(train_ratings))
-            n_splits=5
-            kf=KFold(n_splits=n_splits,random_state=1,shuffle=True)
+            cv_result=[] 
             sum_mae,sum_mse=0,0
-            for train_index,test_index in kf.split(X):
-                train_data=[train_ratings[i] for i in train_index]
-                validation_data=[train_ratings[j] for j in test_index]
+            for i in range(1,6):
+                logger.info(f"dataset: {args.data}/u{i}.base  {args.data}/u{i}.test")
+                train_data=load_rating_file_as_list(f"{args.data}/u{i}.base")
+                validation_data=load_rating_file_as_list(f"{args.data}/u{i}.test")
 
-                train_num_rated_users=get_num_rated_user(train_data)
-                user_dict,item_dict=get_user_and_item_dict(validation_data)
-                
+                user_dict,item_dict=get_user_and_item_dict(train_data) 
                 num_users=max(max(user_dict.values()),len(user_dict))
                 num_items=max(max(item_dict.values()),len(item_dict))
                 logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #validation_pairs=%d' %
@@ -174,8 +165,8 @@ def main():
 
                 #get privacy vector and stretched rating
                 user_privacy_vector,item_privacy_vector=get_privacy_vector(user_dict,item_dict,user_privacy_list,user_type_fraction,item_privacy_list)
-                stretch_ratings,user_privacy_vector,item_privacy_vector=stretch_rating(train_data,user_privacy_vector,item_privacy_vector)
-                
+                stretch_ratings=stretch_rating(train_data,user_privacy_vector,item_privacy_vector)
+                num_rated_users=get_num_rated_user(train_data)
                 # Initialize the model, need to plus 1 because the index start from 0
                 model = MFModel(num_users+1, num_items+1, args.embedding_dim,
                                 args.regularization, args.stddev)
@@ -196,28 +187,32 @@ def main():
                     test_mae,test_mse = evaluate(model, validation_data,user_privacy_vector,item_privacy_vector)
                     test_mae=round(test_mae,4)
                     test_mse=round(test_mse,4)
-                    if epoch%5==0 or epoch==args.epochs-1:
-                        logger.info('Epoch %4d:\t trainmae=%.4f\t valmae=%.4f\t trainmse=%.4f\t valmse=%.4f\t' % (epoch, train_mae,test_mae,train_mse,test_mse))
+                    # if epoch%5==0 or epoch==args.epochs-1:
+                    logger.info('Epoch %4d:\t trainmae=%.4f\t valmae=%.4f\t trainmse=%.4f\t valmse=%.4f\t' % (epoch, train_mae,test_mae,train_mse,test_mse))
                 
+                cv_result.append([i,test_mae,test_mse])
                 sum_mae+=test_mae  #add the final mae
                 sum_mse+=test_mse
 
-            avg_mae=sum_mae/n_splits  
-            avg_mse=sum_mse/n_splits
-            cv_result.append([avg_mae,avg_mse])
+            avg_mae=sum_mae/5  
+            avg_mse=sum_mse/5
+            cv_result.append(["avg",avg_mae,avg_mse])
             #Write cross_validation result into csv
             logger.info(f"Writing {args.mode} results into {args.filename}")
             with open(args.filename, "w") as csvfile:
                 writer = csv.writer(csvfile)
-                writer.writerow(["avg_mae,avg_mse"])
+                writer.writerow(["round","valmae","valmse"])
                 for row in cv_result:
                     writer.writerow(row)
 
 
 
         if args.mode=="test":
-            user_dict,item_dict=get_user_and_item_dict(train_ratings)
+            train_ratings=load_rating_file_as_list(f"{args.data}/ua.base")
+            test_ratings=load_rating_file_as_list(f"{args.data}/ua.test")
             
+            user_dict,item_dict=get_user_and_item_dict(train_ratings)
+
             num_users=max(max(user_dict.values()),len(user_dict))
             num_items=max(max(item_dict.values()),len(item_dict))
             logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #test_pairs=%d' %
@@ -225,9 +220,9 @@ def main():
 
             #get privacy vector and stretched rating
             user_privacy_vector,item_privacy_vector=get_privacy_vector(user_dict,item_dict,user_privacy_list,user_type_fraction,item_privacy_list)
-            stretch_ratings,user_privacy_vector,item_privacy_vector=stretch_rating(train_data,user_privacy_vector,item_privacy_vector)
+            stretch_ratings=stretch_rating(train_ratings,user_privacy_vector,item_privacy_vector)
             
-            train_num_rated_users=get_num_rated_user(train_ratings)
+            num_rated_users=get_num_rated_user(train_ratings)
             # Initialize the model, need to plus 1 because the index start from 0
             model = MFModel(num_users+1, num_items+1, args.embedding_dim,
                             args.regularization, args.stddev)
@@ -241,7 +236,7 @@ def main():
                 else:
                     lr=0.0001
 
-                train_mae,train_mse= model.fit(args.max_budget,stretch_ratings,lr,train_num_rated_users,item_dict)
+                train_mae,train_mse= model.fit(args.max_budget,stretch_ratings,lr,num_rated_users,item_dict)
                 train_mae=round(train_mae,4)
                 train_mse=round(train_mse,4)
 
