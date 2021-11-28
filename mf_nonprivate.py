@@ -160,7 +160,7 @@ def main():
     logger.info("Start running nonprivate mf")
     logger.info(args)
 
-    
+    lr_scheme=string_to_list(args.lr_scheme)
     try:
         if args.mode=="cv":
             #5-fold cross validation
@@ -198,7 +198,6 @@ def main():
                     test_mae,test_mse = evaluate(model, validation_data,user_dict,item_dict)
                     test_mae=round(test_mae,4)
                     test_mse=round(test_mse,4)
-                    # if epoch%5==0 or epoch==args.epochs-1:
                     logger.info('Epoch %4d:\t trainmae=%.4f\t valmae=%.4f\t trainmse=%.4f\t valmse=%.4f\t' % (epoch, train_mae,test_mae,train_mse,test_mse))
                 
                 cv_result.append([i,test_mae,test_mse])

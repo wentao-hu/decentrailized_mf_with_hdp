@@ -14,16 +14,17 @@ str1="""
 """
 
 #self-defined command for hyperparameter tuning 
-mode="cv"
+mode="test"
+# strategy="mean"
 user_privacy="0.1 0.2 1"
 item_privacy="0.1 0.2 1"
-for lr1 in [20,30]:
-    for lr2 in [40,50]:
-        for embedding_dim in [1,2]:
+for lr1 in [20]:
+    for lr2 in [40]:
+        for embedding_dim in [1]:
             for reg in [0.001]:
                 lr_scheme=f"{lr1} {lr2}"
-                filename=f"./Results/sampling/sampling_{mode}_dim={embedding_dim}_lrs={lr_scheme}_reg={reg}_priv2.csv"
-                logfile=f"./log/sampling/sampling_{mode}_dim={embedding_dim}_lrs={lr_scheme}_reg={reg}_priv2.log"
+                filename=f"./Results/sampling/sampling_{mode}_dim={embedding_dim}_lrs={lr_scheme}_reg={reg}_priv2_ub.csv"
+                logfile=f"./log/sampling/sampling_{mode}_dim={embedding_dim}_lrs={lr_scheme}_reg={reg}_priv2_ub.log"
 
                 str2=f""" python mf_sampling_decentralized.py --mode "{mode}" --regularization {reg} --user_privacy "{user_privacy}" --item_privacy "{item_privacy}" --lr_scheme "{lr_scheme}" --embedding_dim {embedding_dim} --filename "{filename}" --logfile "{logfile}" """
                 with open('run_sampling_decentralized.sh','w') as f:   
@@ -32,4 +33,4 @@ for lr1 in [20,30]:
                 #run .sh file
                 cmd = 'bsub < run_sampling_decentralized.sh'
                 os.system(cmd)
-                time.sleep(30)
+                time.sleep(20)

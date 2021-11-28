@@ -16,8 +16,8 @@ str1="""
 mode="cv"
 for lr1 in [20,30]:
     for lr2 in [40,50]:
-        for embedding_dim in [1,2]:
-            for reg in [0.01]:
+        for embedding_dim in [5,10]:
+            for reg in [0.01,0.001]:
                 lr_scheme=f"{lr1} {lr2}"
                 filename=f"./Results/nonprivate/nonprivate_{mode}_dim={embedding_dim}_lrs={lr_scheme}_reg={reg}_priv2.csv"
                 logfile=f"./log/nonprivate/nonprivate_{mode}_dim={embedding_dim}_lrs={lr_scheme}_reg={reg}_priv2.log"
@@ -29,4 +29,4 @@ for lr1 in [20,30]:
                 #run .sh file
                 cmd = 'bsub < run_nonprivate.sh'
                 os.system(cmd)
-                time.sleep(30)
+                time.sleep(10)
