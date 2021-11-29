@@ -41,7 +41,7 @@ def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
             if prediction>=5:
                 prediction=5
             if prediction<=1:
-                predicion=1
+                prediction=1
             err_ui = rating - prediction
             absolute_loss += abs(err_ui)
             square_loss+=err_ui**2
@@ -68,7 +68,7 @@ def get_threshold(ratingList,user_privacy_vector,item_privacy_vector,max_budget,
     if strategy=="mean":
         threshold=sum_privacy/len(ratingList)
     elif strategy=="min":
-        threshold=min_privavy
+        threshold=min_privacy
     else:
         threshold=max_privacy
     return threshold

@@ -1,10 +1,10 @@
 
 #/bin/bash
 #BSUB -J hdp  
-#BSUB -e ./log/clusterlog/hdp/%J.err 
-#BSUB -o ./log/clusterlog/hdp/%J.out
+#BSUB -e ./log-ml-1m/clusterlog/hdp/%J.err 
+#BSUB -o ./log-ml-1m/clusterlog/hdp/%J.out
 #BSUB -n 1
 #BSUB -q gauss
 #BSUB -gpu "num=1:mode=exclusive_process"
 
- python mf_hdp_decentralized.py --mode "test" --regularization 0.001 --user_privacy "0.1 0.2 1" --item_privacy "0.1 0.2 1" --lr_scheme "40 50" --embedding_dim 1 --filename "./Results/hdp/hdp_test_dim=1_lrs=40 50_reg=0.001_priv2_ub.csv" --logfile "./log/hdp/hdp_test_dim=1_lrs=40 50_reg=0.001_priv2_ub.log" 
+ python mf_hdp_decentralized.py --mode "cv" --regularization 0.001 --user_privacy "0.5 0.75 1" --item_privacy "0.5 0.75 1" --lr_scheme "20 50" --embedding_dim 2 --filename "./Results-ml-1m/hdp/priv1_hdp_cv_dim=2_lrs=20 50_reg=0.001.csv" --logfile "./log-ml-1m/hdp/priv1_hdp_cv_dim=2_lrs=20 50_reg=0.001.log" 

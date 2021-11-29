@@ -9,7 +9,7 @@ def load_rating_file_as_list(filename):
     with open(filename, "r") as f:
         line = f.readline()
         while line != None and line != "":
-            arr = line.split("\t")
+            arr = line.split(" ")
             user, item, rating = int(arr[0]), int(arr[1]), int(arr[2])
             ratingList.append([user, item, rating])             
             line = f.readline()   

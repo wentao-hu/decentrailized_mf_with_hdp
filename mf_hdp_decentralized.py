@@ -71,7 +71,7 @@ def main():
     #experiment setting  
     parser.add_argument('--data',
 						type=str,
-						default='Data/ml-100k',
+						default='Data/ml-1m',
 						help='Path to the dataset')
     parser.add_argument('--max_budget',
                         type=float,
@@ -207,9 +207,9 @@ def main():
 
 
         if args.mode=="test":
-            train_ratings=load_rating_file_as_list(f"{args.data}/ub.base")
-            test_ratings=load_rating_file_as_list(f"{args.data}/ub.test")
-            logger.info(f"dataset: {args.data}/ub.base {args.data}/ub.test")
+            train_ratings=load_rating_file_as_list(f"{args.data}/u.base")
+            test_ratings=load_rating_file_as_list(f"{args.data}/u.test")
+            logger.info(f"dataset: {args.data}/u.base {args.data}/u.test")
             user_dict,item_dict=get_user_and_item_dict(train_ratings)
 
             num_users=max(max(user_dict.values()),len(user_dict))
