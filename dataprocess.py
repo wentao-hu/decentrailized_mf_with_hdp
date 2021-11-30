@@ -9,7 +9,7 @@ def load_rating_file_as_list(filename):
     with open(filename, "r") as f:
         line = f.readline()
         while line != None and line != "":
-            arr = line.split(" ")
+            arr = line.split("\t")
             user, item, rating = int(arr[0]), int(arr[1]), int(arr[2])
             ratingList.append([user, item, rating])             
             line = f.readline()   
@@ -67,16 +67,16 @@ def main():
     file_index=1
     for train_index,test_index in kf.split(df):
         train,test=df.iloc[train_index],df.iloc[test_index]
-        train.to_csv(f"Data/ml-1m/u{file_index}.base",sep=' ', index=False, header=False)
-        test.to_csv(f"Data/ml-1m/u{file_index}.test",sep=' ', index=False, header=False)
+        train.to_csv(f"Data/ml-1m/u{file_index}.base",sep='\t', index=False, header=False)
+        test.to_csv(f"Data/ml-1m/u{file_index}.test",sep='\t', index=False, header=False)
         file_index+=1
 
     #generate train and test dataset for ml-1m   
     df=df.rename(columns={0:"user",1:"item",2:"rating"})
     test=df.groupby("user").sample(n=10,random_state=1)
     train=df.drop(test.index)
-    test.to_csv("Data/ml-1m/u.test",sep=' ', index=False, header=False)
-    train.to_csv("Data/ml-1m/u.base",sep=' ', index=False, header=False)
+    test.to_csv("Data/ml-1m/u.test",sep='\t', index=False, header=False)
+    train.to_csv("Data/ml-1m/u.base",sep='\t', index=False, header=False)
 
 
 if __name__=="__main__":
