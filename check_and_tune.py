@@ -5,4 +5,11 @@ output: the best hyperparameter combination in this folder
 '''
 
 import os
-folder=""
+import re
+
+
+data="ml-1m"
+method=""
+path=f"Data/log-ml-1m"
+
+for filename in os.listdir
