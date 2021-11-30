@@ -30,6 +30,11 @@ str1=f"""
 #BSUB -gpu "num=1:mode=exclusive_process"
 """
 
+#创建相应文件夹存储结果，如果不存在就新建
+# dirs = '/Users/joseph/work/python/'
+# if not os.path.exists(dirs):
+#     os.makedirs(dirs)
+
 #未完待续，后面继续完善
 if method=="hdp" or method=="sampling":
     for lr1 in lr1_range:

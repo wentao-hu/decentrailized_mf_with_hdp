@@ -9,7 +9,8 @@ import re
 
 
 data="ml-1m"
-method=""
-path=f"Data/log-ml-1m"
+method="hdp"
+path=f"log-{data}/{method}"
 
-for filename in os.listdir
+for filename in os.listdir(path):
+    print(filename)
