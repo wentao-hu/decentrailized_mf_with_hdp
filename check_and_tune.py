@@ -47,15 +47,16 @@ def check_logfiles(folder,pattern):
 
 
 def main():
-    data="ml-1m"
-    method="hdp"
+    data="ml-100k"
+    method="nonprivate"
     logfolder=f"log-{data}/{method}"
     resultsfolder=f"Results-{data}/{method}"
 
     #check csv results and return
     pattern1=f"priv1_{method}_cv.*"
-    # pattern2=f"{method}_cv.*priv2.*"
-    filelist=get_filelist(logfolder,pattern1)
+    pattern2=f"{method}_cv.*priv2.*"
+    pattern3=f"{method}_cv.*"
+    filelist=get_filelist(resultsfolder,pattern3)
     print(filelist)
     avgmse_dict={}
     for file in filelist:
