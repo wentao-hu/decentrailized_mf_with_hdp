@@ -9,8 +9,10 @@ datapath=f"Data/{data}"
 #experiment environment
 method="hdp"
 mode="test"
-user_privacy="0.5 0.75 1"
-item_privacy="0.5 0.75 1"
+priv_schemename="priv1"
+priv_scheme="0.5 0.75 1"
+user_privacy=priv_scheme
+item_privacy=priv_scheme
 
 #hyperparameter range
 lr1_range=[20,30]

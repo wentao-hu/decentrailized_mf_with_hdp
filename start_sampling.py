@@ -19,7 +19,7 @@ mode="test"
 # strategy="mean"
 user_privacy="0.5 0.75 1"
 item_privacy="0.5 0.75 1"
-for lr1 in [30]:
+for lr1 in [20]:
     for lr2 in [50]:
         for embedding_dim in [3]:
             for reg in [0.01]:
