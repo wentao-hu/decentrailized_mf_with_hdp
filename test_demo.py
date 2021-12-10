@@ -11,7 +11,7 @@ from mf_sampling_decentralized import *
 from mf_hdp_decentralized import *
 import pandas as pd
 
-data="Data/ml-1m"
-train_data=load_rating_file_as_list(f"{data}/u.base")
-print(train_data[:10])
-
+v1=np.random.rand(10)
+v2=np.random.rand(10)
+sum=v1.dot(v2)
+print(sum)

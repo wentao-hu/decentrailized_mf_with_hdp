@@ -87,11 +87,11 @@ def main():
                         help='fraction for 3 types of users')
     parser.add_argument('--user_privacy',
                         type=str,
-                        default='0.2 0.6 1',
+                        default='0.5 0.75 1',
                         help='privacy weight list for different type of uses')
     parser.add_argument('--item_privacy',
                         type=str,
-                        default="0.2 0.6 1",
+                        default="0.5 0.75 1",
                         help='privacy weight list for different type of items')
     parser.add_argument('--filename',
                         type=str,

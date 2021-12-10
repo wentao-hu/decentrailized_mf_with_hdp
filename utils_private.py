@@ -25,7 +25,7 @@ class MFModel(object):
         return prediction
 
     def fit(self, privacy_budget, train_rating_matrix,learning_rate,num_rated_users,item_dict):
-        """Trains the model for one epoch.
+        """Trains the model for one epoch using SGD
 
 		Args:
 			train_rating_matrix: a nested list, each secondary list representing a positive
