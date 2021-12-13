@@ -1,16 +1,3 @@
-# coding=utf-8
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 '''
 @author: Wentao Hu (stevenhwt@gmail.com)
 '''
@@ -22,8 +9,8 @@ import numpy as np
 import random
 import csv
 import logging
-from sklearn.model_selection import KFold
-from utils_private import *
+from utils import *
+np.random.seed(2)
 
 
 
@@ -109,24 +96,7 @@ def main():
                          type=str,
                          default="mean",
                          help='threshold strategy for sampling mechanism')
-     # hyperparameter
-    parser.add_argument('--embedding_dim',
-						type=int,
-						default=10,
-						help='Embedding dimensions')
-    parser.add_argument('--regularization',
-                        type=float,
-                        default=0.001,
-                        help='L2 regularization for user and item embeddings.')
-    parser.add_argument('--lr_scheme',
-                        type=str,
-                        default="20 40",
-                        help='change epoch of lr,before 1st number lr=0.005,1st-2nd number lr=0.001, after 2nd number lr=0.0001')
-    parser.add_argument('--stddev',
-                        type=float,
-                        default=0.1,
-                        help='Standard deviation for initialization.')
-    
+
     #experiment setting
     parser.add_argument('--data',
 						type=str,
@@ -160,6 +130,24 @@ def main():
                         type=str,
                         default="./log/hdp.log",
                         help='path to store the log file')
+    
+    # hyperparameter
+    parser.add_argument('--lr',
+                        type=float,
+                        default=0.01,
+                        help='initial learning rate') 
+    parser.add_argument('--embedding_dim',
+						type=int,
+						default=10,
+						help='Embedding dimensions')
+    parser.add_argument('--regularization',
+                        type=float,
+                        default=0.01,
+                        help='L2 regularization for user and item embeddings.')             
+    parser.add_argument('--stddev',
+                        type=float,
+                        default=0.1,
+                        help='Standard deviation for initialization.')
     
     args = parser.parse_args()
 

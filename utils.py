@@ -1,8 +1,12 @@
+"""
+author: Wentao Hu(stevenhwt@gmail.com)
+"""
 import numpy as np
-import random
+np.random.seed(2)
+
 
 class MFModel(object):
-    """A matrix factorization model trained using SGD."""
+    """A matrix factorization model trained using SGD in the private setting"""
     def __init__(self, num_user, num_item, embedding_dim, reg, stddev):
         """Initializes MFModel.
 
@@ -45,22 +49,8 @@ class MFModel(object):
         Delta = 4
         absolute_loss = 0.0
         square_loss=0
-        #On user device, user embedding is updated normally by users
-        for i in range(num_examples):
-            (user, item, rating) = train_rating_matrix[i]
-            user_emb = self.user_embedding[user]
-            item_emb = self.item_embedding[item]
 
-            prediction = self._predict_one(user, item)
-            err_ui = rating - prediction
-            
-            absolute_loss += abs(err_ui)   
-            square_loss+=err_ui**2
-
-            self.user_embedding[user,:] += lr * 2 * (err_ui * item_emb - reg * user_emb)
-
-        
-        #On server side, item embedding is updated aftering gathering private gradient from all users
+        #On recommender side, item embedding is updated aftering gathering private gradient from all users
         h_dict={}    #get h_j when updating item embedding v_j
         for j in range(len(item_dict)):
             item=item_dict[j]
@@ -68,7 +58,7 @@ class MFModel(object):
 
         for i in range(num_examples):
             (user, item, rating) = train_rating_matrix[i]
-            user_emb = self.user_embedding[user]
+            user_emb = clip_embedding(self.user_embedding[user])
             item_emb = self.item_embedding[item]
 
             prediction = self._predict_one(user, item)
@@ -78,26 +68,64 @@ class MFModel(object):
             c=np.random.normal(0,std,embedding_dim)
             h=h_dict[item]
             noise_vector=2 * Delta*np.sqrt(2*embedding_dim*h) *c/privacy_budget
-
             self.item_embedding[item,:]+=lr*(2*(err_ui*user_emb-reg*item_emb)-noise_vector)
+
+
+        #On user side, user embedding is updated normally by users
+        for i in range(num_examples):
+            (user, item, rating) = train_rating_matrix[i]
+            user_emb = clip_embedding(self.user_embedding[user])
+            item_emb = self.item_embedding[item]
+
+            prediction = self._predict_one(user, item)
+            err_ui = rating - prediction
+            
+            absolute_loss += abs(err_ui)   
+            square_loss+=err_ui**2
+
+            self.user_embedding[user,:] += lr * 2 * (err_ui * item_emb - reg * user_emb)
+            self.user_embedding[user,:]=clip_embedding(self.user_embedding[user,:])
 
         mae=absolute_loss/num_examples
         mse=square_loss/num_examples
         return mae,mse
 
 
-#get privacy vector according to fraction of different users and items , and their privacy weight
-def get_privacy_vector(user_dict,item_dict,user_privacy_list,user_type_fraction,item_privacy_list):
+
+def get_privacy_vector(user_dict,item_dict,user_privacy_list,user_type_ratio,item_privacy_list,item_type_ratio):
+    '''get privacy vector according to fraction of different users and items , and their privacy weight'''
     user_privacy_vector={}
     item_privacy_vector={}
+    group_list=["conservative","moderate","liberal"]
     for i in range(len(user_dict)):
-        tmp=np.random.choice(user_privacy_list,1,p=user_type_fraction)  #return a list at length 1
-        user_privacy_weight=tmp[0]
+        group=np.random.choice(group_list,1,p=user_type_ratio)[0]
+        if group=="conservative":
+            user_privacy_weight=np.random.uniform(user_privacy_list[0],user_privacy_list[1],1)[0]
+        elif group=="moderate":
+            user_privacy_weight=np.random.uniform(user_privacy_list[1],user_privacy_list[2],1)[0]
+        else:
+            user_privacy_weight=1
         user=user_dict[i]
         user_privacy_vector[user]=user_privacy_weight
     
     for j in range(len(item_dict)):
-        item_privacy_weight=random.choice(item_privacy_list)
+        group=np.random.choice(group_list,1,p=item_type_ratio)[0]
+        if group=="conservative":
+            item_privacy_weight=np.random.uniform(item_privacy_list[0],item_privacy_list[1],1)[0]
+        elif group=="moderate":
+            item_privacy_weight=np.random.uniform(item_privacy_list[1],item_privacy_list[2],1)[0]
+        else:
+            item_privacy_weight=1
         item=item_dict[j]
         item_privacy_vector[item]=item_privacy_weight
     return user_privacy_vector,item_privacy_vector
+
+
+
+def clip_embedding(embedding):
+    ''''clip user embedding to restrict its 2-norm no greated than 1'''
+    if np.linalg.norm(embedding,ord=2)<=1:
+        clipped_embedding=embedding
+    else:
+        clipped_embedding=embedding/np.linalg.norm(embedding,ord=2)
+    return clipped_embedding

@@ -4,6 +4,10 @@ author:Wentao Hu
 import numpy as np
 from sklearn.model_selection import KFold
 import pandas as pd
+np.random.seed(0)
+
+
+
 def load_rating_file_as_list(filename):        
     ratingList = []
     with open(filename, "r") as f:
@@ -43,6 +47,7 @@ def get_num_rated_user(ratingList):
         else:
             num_rated_users[item]=1
     return num_rated_users
+
 
 def string_to_list(str):
     '''transfer a numerical string to list, used in parse some arguments below'''
