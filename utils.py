@@ -51,11 +51,7 @@ class MFModel(object):
         square_loss=0
 
         #On recommender side, item embedding is updated aftering gathering private gradient from all users
-        h_dict={}    #get h_j when updating item embedding v_j
-        for j in range(len(item_dict)):
-            item=item_dict[j]
-            h_dict[item]=np.random.exponential(1,embedding_dim) 
-
+        h=np.random.exponential(1,embedding_dim)
         for i in range(num_examples):
             (user, item, rating) = train_rating_matrix[i]
             user_emb = clip_embedding(self.user_embedding[user])
@@ -66,7 +62,6 @@ class MFModel(object):
 
             std=np.sqrt(1/num_rated_users[item])
             c=np.random.normal(0,std,embedding_dim)
-            h=h_dict[item]
             noise_vector=2 * Delta*np.sqrt(2*embedding_dim*h) *c/privacy_budget
             self.item_embedding[item,:]+=lr*(2*(err_ui*user_emb-reg*item_emb)-noise_vector)
 

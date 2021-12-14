@@ -48,7 +48,7 @@ class MFModel(object):
             
             absolute_loss += abs(err_ui)   
             square_loss += err_ui**2
-
+            
             self.user_embedding[user,:] += lr * 2 * (err_ui * item_emb - reg * user_emb)
             self.user_embedding[user,:]=clip_embedding(self.user_embedding[user,:])
             self.item_embedding[item,:]+=lr*2*(err_ui*user_emb-reg*item_emb)
@@ -99,7 +99,7 @@ def main():
 						help='Path to the dataset') 
     parser.add_argument('--epochs',
                         type=int,
-                        default=60,
+                        default=100,
                         help='Number of total training epochs')
     parser.add_argument('--filename',
                         type=str,

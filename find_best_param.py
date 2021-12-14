@@ -8,7 +8,6 @@ import os
 import re
 
 
-
 def get_filelist(folder,pattern):
     filelist=[]
     for filename in os.listdir(folder):
@@ -36,6 +35,8 @@ def main():
     resultsfolder=f"results-{data}/{method}"
 
     #check csv results and return
+    #pattern=f".*uc0.4_{method}_cv.*"
+    #pattern=f"{method}_cv.*default.csv"
     pattern=f"{method}_cv.*"
     filelist=get_filelist(resultsfolder,pattern)
     print(filelist)

@@ -89,7 +89,7 @@ def main():
     parser.add_argument('--mode',
             type=str,
             default="cv",
-            help='cv means cross-validation mode, test means utilizing the best hyperparameter to evaluate on test ratings')
+            help='cv means cross-validation mode, test means test mode')
 
     #special hyperparameter for sampling mechanism
     parser.add_argument('--strategy',
@@ -124,11 +124,11 @@ def main():
                         help='privacy weight list for different type of items')
     parser.add_argument('--filename',
                         type=str,
-                        default="./Results/hdp.csv",
+                        default="hdp.csv",
                         help='filename to store the training and testing result')
     parser.add_argument('--logfile',
                         type=str,
-                        default="./log/hdp.log",
+                        default="hdp.log",
                         help='path to store the log file')
     
     # hyperparameter
@@ -179,67 +179,62 @@ def main():
     
     try:
         if args.mode=="cv":
-        #5-fold cross validation
-            cv_result=[] 
-            sum_mae,sum_mse=0,0
-            for i in range(1,6):
-                logger.info(f"dataset: {args.data}/u{i}.base  {args.data}/u{i}.test")
-                train_data=load_rating_file_as_list(f"{args.data}/u{i}.base")
-                validation_data=load_rating_file_as_list(f"{args.data}/u{i}.test")
+        # randomly choose 1 validation set to do validation
+        i=np.random.choice([1,2,3,4,5],1)[0]
 
-                user_dict,item_dict=get_user_and_item_dict(train_data) 
-                num_users=max(max(user_dict.values()),len(user_dict))
-                num_items=max(max(item_dict.values()),len(item_dict))
-                logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #validation_pairs=%d' %
-                    (num_users, num_items, len(train_data),len(validation_data)))
+        logger.info(f"dataset: {args.data}/u{i}.base  {args.data}/u{i}.test")
+        train_data=load_rating_file_as_list(f"{args.data}/u{i}.base")
+        validation_data=load_rating_file_as_list(f"{args.data}/u{i}.test")
+
+        user_dict,item_dict=get_user_and_item_dict(train_data) 
+        num_users=max(max(user_dict.values()),len(user_dict))
+        num_items=max(max(item_dict.values()),len(item_dict))
+        logger.info('Dataset: #user=%d, #item=%d, #train_pairs=%d, #validation_pairs=%d' %
+            (num_users, num_items, len(train_data),len(validation_data)))
 
 
-                user_privacy_vector,item_privacy_vector=get_privacy_vector(user_dict,item_dict,user_privacy_list,user_type_fraction,item_privacy_list)
-                threshold=get_threshold(train_data,user_privacy_vector,item_privacy_vector,args.max_budget,args.strategy)
-                #get the sampling threshold according to sampling stategy
-                logger.info(f"threshold in {args.strategy} strategy={threshold}")
+        user_privacy_vector,item_privacy_vector=get_privacy_vector(user_dict,item_dict,user_privacy_list,user_type_fraction,item_privacy_list)
+        threshold=get_threshold(train_data,user_privacy_vector,item_privacy_vector,args.max_budget,args.strategy)
+        #get the sampling threshold according to sampling stategy
+        logger.info(f"threshold in {args.strategy} strategy={threshold}")
 
-                sampled_ratings=get_sampled_ratings(train_data,threshold,args.max_budget,user_privacy_vector,item_privacy_vector)
-                logger.info(f"the size of sampled training dataset: {len(sampled_ratings)}")
+        sampled_ratings=get_sampled_ratings(train_data,threshold,args.max_budget,user_privacy_vector,item_privacy_vector)
+        logger.info(f"the size of sampled training dataset: {len(sampled_ratings)}")
 
-                #compute the number of rated users for each item in the sampled ratings
-                sampled_num_rated_users=get_num_rated_user(sampled_ratings)
-                
-                # Initialize the model
-                model = MFModel(num_users+1, num_items+1, args.embedding_dim,
-                                args.regularization, args.stddev)
+        #compute the number of rated users for each item in the sampled ratings
+        sampled_num_rated_users=get_num_rated_user(sampled_ratings)
+        
+        cv_result=[]
+        # Initialize the model
+        model = MFModel(num_users+1, num_items+1, args.embedding_dim,
+                        args.regularization, args.stddev)
 
-                for epoch in range(args.epochs):
-                    if epoch<=lr_scheme[0]:
-                        lr=0.005
-                    elif epoch<=lr_scheme[1]:
-                        lr=0.001
-                    else:
-                        lr=0.0001
+        for epoch in range(args.epochs):
+            if epoch<=lr_scheme[0]:
+                lr=0.005
+            elif epoch<=lr_scheme[1]:
+                lr=0.001
+            else:
+                lr=0.0001
 
-                    train_mae,train_mse= model.fit(threshold,sampled_ratings,lr,sampled_num_rated_users,item_dict)
-                    train_mae=round(train_mae,4)
-                    train_mse=round(train_mse,4)
+            train_mae,train_mse= model.fit(threshold,sampled_ratings,lr,sampled_num_rated_users,item_dict)
+            train_mae=round(train_mae,4)
+            train_mse=round(train_mse,4)
 
-                    test_mae,test_mse = evaluate(model, validation_data,user_privacy_vector,item_privacy_vector)
-                    test_mae=round(test_mae,4)
-                    test_mse=round(test_mse,4)
-                    logger.info('Epoch %4d:\t trainmae=%.4f\t valmae=%.4f\t trainmse=%.4f\t valmse=%.4f\t' % (epoch, train_mae,test_mae,train_mse,test_mse))
-                
-                cv_result.append([i,test_mae,test_mse])
-                sum_mae+=test_mae  #add the final mae
-                sum_mse+=test_mse
+            test_mae,test_mse = evaluate(model, validation_data,user_privacy_vector,item_privacy_vector)
+            test_mae=round(test_mae,4)
+            test_mse=round(test_mse,4)
+            logger.info('Epoch %4d:\t trainmae=%.4f\t valmae=%.4f\t trainmse=%.4f\t valmse=%.4f\t' % (epoch, train_mae,test_mae,train_mse,test_mse))
+            cv_result.append([epoch+1,train_mae,test_mae,train_mse,test_mse])
 
-            avg_mae=sum_mae/5  
-            avg_mse=sum_mse/5
-            cv_result.append(["avg",avg_mae,avg_mse])
-            #Write cross_validation result into csv
-            logger.info(f"Writing {args.mode} results into {args.filename}")
-            with open(args.filename, "w") as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow(["round","valmae","valmse"])
-                for row in cv_result:
-                    writer.writerow(row)
+        
+        #Write cross_validation result into csv
+        logger.info(f"Writing {args.mode} results into {args.filename}")
+        with open(args.filename, "w") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["epoch", "train_mae","val_mae","train_mse","val_mse"])
+            for row in cv_result:
+                writer.writerow(row)
 
 
         if args.mode=="test":

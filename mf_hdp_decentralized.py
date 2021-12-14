@@ -72,7 +72,7 @@ def main():
                         help='maximum privacy budget for all the ratings')
     parser.add_argument('--epochs',
                         type=int,
-                        default=60,
+                        default=100,
                         help='Number of private training epochs in a decentralized way')
     parser.add_argument('--user_ratio',
                         type=str,
@@ -211,7 +211,7 @@ def main():
                 (num_users, num_items, len(train_ratings),len(test_ratings)))
 
             #get privacy vector and stretched rating
-            user_privacy_vector,item_privacy_vector=get_privacy_vector(user_dict,item_dict,user_privacy_list,user_type_ratio,item_privacy_list)
+            user_privacy_vector,item_privacy_vector=get_privacy_vector(user_dict,item_dict,user_privacy_list,user_type_ratio,item_privacy_list,item_type_ratio)
             stretch_ratings=stretch_rating(train_ratings,user_privacy_vector,item_privacy_vector)
             
             num_rated_users=get_num_rated_user(train_ratings)
