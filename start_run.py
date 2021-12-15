@@ -7,24 +7,13 @@ import time
 
 #experiment setting
 data="ml-100k"
-method="nonprivate"
-mode="cv"
+method="hdp"
+mode="test"
 datapath=f"Data/{data}"
 #hyperparameter range
 dim_range=[10]
-lr_range=[0.01,0.005]  #initial learning rate
-reg_range=[0.01,0.001]
-
-#privacy setting
-# epsilon_ic=0.2
-# user_privacy=f"{epsilon_uc} 0.5 1"
-f_uc=0.1
-f_um=0.37
-f_ul=1-f_uc-f_um
-user_ratio=f"{f_uc} {f_um} {f_ul}"
-
-
-
+lr_range=[0.005]  #initial learning rate
+reg_range=[0.01]
 
 # create folder to store log and results
 dir1=f'log-{data}/{method}'
@@ -46,22 +35,30 @@ str1=f"""
 #BSUB -q volta
 #BSUB -gpu "num=1:mode=exclusive_process"
 """
+#privacy setting
+uc_range=[0.1,0.2,0.3,0.4]
 
 if method=="hdp" or method=="sampling":
     for lr in lr_range:
-            for dim in dim_range:
-                for reg in reg_range:
-                    filename=f"./results-{data}/{method}/f_uc{f_uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}.csv"
-                    logfile=f"./log-{data}/{method}/f_uc{f_uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}.log"
+        for dim in dim_range:
+            for reg in reg_range:
+                for uc in uc_range:
+                    # f_um=0.37
+                    # f_ul=1-uc-f_um
+                    # user_ratio=f"{uc} {f_um} {f_ul}"
+                    user_privacy=f"{uc} 0.5 1"
 
-                    str2=f""" python mf_{method}_decentralized.py --data "{datapath}" --user_ratio "{user_ratio}" --mode "{mode}" --lr {lr} --embedding_dim {dim} --regularization {reg} --filename "{filename}" --logfile "{logfile}" """
+                    filename=f"./results-{data}/{method}/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}b.csv"
+                    logfile=f"./log-{data}/{method}/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}b.log"
+
+                    str2=f""" python mf_{method}_decentralized.py --data "{datapath}" --user_privacy "{user_privacy}" --mode "{mode}" --lr {lr} --embedding_dim {dim} --regularization {reg} --filename "{filename}" --logfile "{logfile}" """
                     with open(f'run_{method}_decentralized.sh','w') as f:   
                         f.write(str1+str2)
 
                     #run .sh file
                     cmd = f'bsub < run_{method}_decentralized.sh'
                     os.system(cmd)
-                    time.sleep(10)
+                    time.sleep(5)
 
 
 
@@ -70,8 +67,8 @@ if method=="nonprivate":
     for lr in lr_range:
         for dim in dim_range:
             for reg in reg_range:
-                filename=f"./results-{data}/nonprivate/nonprivate_{mode}_dim={dim}_lr={lr}_reg={reg}.csv"
-                logfile=f"./log-{data}/nonprivate/nonprivate_{mode}_dim={dim}_lr={lr}_reg={reg}.log"
+                filename=f"./results-{data}/nonprivate/epoch100_nonprivate_{mode}_dim={dim}_lr={lr}_reg={reg}b.csv"
+                logfile=f"./log-{data}/nonprivate/epoch100_nonprivate_{mode}_dim={dim}_lr={lr}_reg={reg}b.log"
 
                 str2=f""" python mf_nonprivate.py --data "{datapath}" --mode "{mode}"  --lr {lr} --embedding_dim {dim} --regularization {reg} --filename "{filename}" --logfile "{logfile}" """
                 with open(f'run_nonprivate.sh','w') as f:   
@@ -80,4 +77,4 @@ if method=="nonprivate":
                 #run .sh file
                 cmd = f'bsub < run_nonprivate.sh'
                 os.system(cmd)
-                time.sleep(10)
+                time.sleep(5)

@@ -1,9 +1,9 @@
 
 #/bin/bash
-#BSUB -J sampling
-#BSUB -e ./log-ml-1m/clusterlog/sampling/%J.err 
-#BSUB -o ./log-ml-1m/clusterlog/sampling/%J.out
+#BSUB -J sampling 
+#BSUB -e ./log-ml-100k/log/%J.err 
+#BSUB -o ./log-ml-100k/log/%J.out
 #BSUB -n 1
-#BSUB -q gauss
+#BSUB -q volta
 #BSUB -gpu "num=1:mode=exclusive_process"
- python mf_sampling_decentralized.py --data "Data/ml-1m" --mode "test" --regularization 0.01 --user_privacy "0.5 0.75 1" --item_privacy "0.5 0.75 1" --lr_scheme "20 50" --embedding_dim 3 --filename "./Results-ml-1m/sampling/priv1_sampling_test_dim=3_lrs=20 50_reg=0.01.csv" --logfile "./log-ml-1m/sampling/priv1_sampling_test_dim=3_lrs=20 50_reg=0.01.log" 
+ python mf_sampling_decentralized.py --data "Data/ml-100k" --user_privacy "0.4 0.5 1" --mode "test" --lr 0.005 --embedding_dim 10 --regularization 0.01 --filename "./results-ml-100k/sampling/epsilon_uc0.4_sampling_test_dim=10_lr=0.005_reg=0.01b.csv" --logfile "./log-ml-100k/sampling/epsilon_uc0.4_sampling_test_dim=10_lr=0.005_reg=0.01b.log" 

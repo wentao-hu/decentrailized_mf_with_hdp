@@ -31,23 +31,26 @@ def read_target_line(filename,num):
 
 def main():
     data="ml-100k"
-    method="nonprivate"
+    method="hdp"
     resultsfolder=f"results-{data}/{method}"
 
     #check csv results and return
-    #pattern=f".*uc0.4_{method}_cv.*"
-    #pattern=f"{method}_cv.*default.csv"
-    pattern=f"{method}_cv.*"
-    filelist=get_filelist(resultsfolder,pattern)
-    print(filelist)
-    mse_dict={}
-    for file in filelist:
-        filename=resultsfolder+"/"+file
-        line=read_target_line(filename,61)
-        avg_mse=float(line.split(",")[-1])
-        mse_dict[file]=avg_mse
-    min_key=min(mse_dict,key=mse_dict.get)
-    print("\nThe best hyperparameter:",min_key,mse_dict[min_key])
+    print(f"The results of {method} on {data}:\n")
+    uc_range=[0.1,0.2,0.3,0.4]
+    for uc in uc_range:
+        pattern=f"epsilon_uc{uc}_{method}_test.*b.csv"
+        #pattern=f"{method}_cv.*default.csv"
+        filelist=get_filelist(resultsfolder,pattern)
+        print(filelist)
+        mse_dict={}
+        for file in filelist:
+            filename=resultsfolder+"/"+file
+            line=read_target_line(filename,101)
+            avg_mse=float(line.split(",")[-1])
+            mse_dict[file]=avg_mse
+        min_key=min(mse_dict,key=mse_dict.get)
+        print("The best hyperparameter:",min_key,mse_dict[min_key],"\n")
+
 
 if __name__=="__main__":
     main()

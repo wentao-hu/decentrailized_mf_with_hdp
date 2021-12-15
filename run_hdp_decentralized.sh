@@ -6,4 +6,4 @@
 #BSUB -n 1
 #BSUB -q volta
 #BSUB -gpu "num=1:mode=exclusive_process"
- python mf_hdp_decentralized.py --data "Data/ml-100k" --user_ratio "0.1 0.37 0.53" --mode "cv" --lr 0.005 --embedding_dim 10 --regularization 0.001 --filename "./results-ml-100k/hdp/f_uc0.1_hdp_cv_dim=10_lr=0.005_reg=0.001.csv" --logfile "./log-ml-100k/hdp/f_uc0.1_hdp_cv_dim=10_lr=0.005_reg=0.001.log" 
+ python mf_hdp_decentralized.py --data "Data/ml-100k" --user_privacy "0.4 0.5 1" --mode "test" --lr 0.005 --embedding_dim 10 --regularization 0.01 --filename "./results-ml-100k/hdp/epsilon_uc0.4_hdp_test_dim=10_lr=0.005_reg=0.01b.csv" --logfile "./log-ml-100k/hdp/epsilon_uc0.4_hdp_test_dim=10_lr=0.005_reg=0.01b.log" 

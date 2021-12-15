@@ -178,7 +178,7 @@ def main():
                 else:
                     lr=init_lr/25
 
-                train_mae,train_mse= model.fit(args.max_budget,stretch_ratings,lr,num_rated_users,item_dict)
+                train_mae,train_mse= model.fit(args.max_budget,stretch_ratings,lr,num_rated_users)
                 train_mae=round(train_mae,4)
                 train_mse=round(train_mse,4)
 
@@ -200,8 +200,8 @@ def main():
 
 
         if args.mode=="test":
-            train_ratings=load_rating_file_as_list(f"{args.data}/ua.base")
-            test_ratings=load_rating_file_as_list(f"{args.data}/ua.test")
+            train_ratings=load_rating_file_as_list(f"{args.data}/ub.base")
+            test_ratings=load_rating_file_as_list(f"{args.data}/ub.test")
             logger.info(f"dataset: {args.data}/u.base {args.data}/u.test")
             user_dict,item_dict=get_user_and_item_dict(train_ratings)
 
@@ -228,14 +228,14 @@ def main():
                 else:
                     lr=init_lr/25
 
-                train_mae,train_mse= model.fit(args.max_budget,stretch_ratings,lr,num_rated_users,item_dict)
+                train_mae,train_mse= model.fit(args.max_budget,stretch_ratings,lr,num_rated_users)
                 train_mae=round(train_mae,4)
                 train_mse=round(train_mse,4)
 
                 test_mae,test_mse = evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector)
                 test_mae=round(test_mae,4)
                 test_mse=round(test_mse,4)
-                logger.info('Epoch %4d:\t trainmae=%.4f\t testmae=%.4f\t trainmse=%.4f\t testmse=%.4f\t' % (epoch, train_mae,test_mae,train_mse,test_mse))
+                logger.info('Epoch %4d:\t trainmae=%.4f\t testmae=%.4f\t trainmse=%.4f\t testmse=%.4f\t' % (epoch+1, train_mae,test_mae,train_mse,test_mse))
                 training_result.append([epoch,train_mae,test_mae,train_mse,test_mse])
 
             logger.info(f"Writing {args.mode} results into {args.filename}")

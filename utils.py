@@ -28,7 +28,7 @@ class MFModel(object):
         prediction=np.dot(self.user_embedding[user], self.item_embedding[item])
         return prediction
 
-    def fit(self, privacy_budget, train_rating_matrix,learning_rate,num_rated_users,item_dict):
+    def fit(self, privacy_budget, train_rating_matrix,learning_rate,num_rated_users):
         """Trains the model for one epoch using SGD
 
 		Args:
