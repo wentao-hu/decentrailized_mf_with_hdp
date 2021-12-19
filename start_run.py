@@ -6,21 +6,23 @@ import os
 import time
 
 #experiment setting
-data="ml-100k"
-method="hdp"
-mode="test"
+data="ml-1m"
+method="sampling"
+mode="cv"
 datapath=f"Data/{data}"
 #hyperparameter range
 dim_range=[10]
-lr_range=[0.005]  #initial learning rate
+lr_range=[0.002,0.001,0.0005,0.0002]  #initial learning rate
 reg_range=[0.01]
+strategy="min"
+
 
 # create folder to store log and results
-dir1=f'log-{data}/{method}'
+dir1=f'log-{data}/{method}-dpmf'
 if not os.path.exists(dir1):
     os.makedirs(dir1)
 
-dir2=f'results-{data}/{method}'
+dir2=f'results-{data}/{method}-dpmf'
 if not os.path.exists(dir2):
     os.makedirs(dir2)
 
@@ -48,10 +50,10 @@ if method=="hdp" or method=="sampling":
                     # user_ratio=f"{uc} {f_um} {f_ul}"
                     user_privacy=f"{uc} 0.5 1"
 
-                    filename=f"./results-{data}/{method}/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}b.csv"
-                    logfile=f"./log-{data}/{method}/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}b.log"
+                    filename=f"./results-{data}/{method}-dpmf/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}.csv"
+                    logfile=f"./log-{data}/{method}-dpmf/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}.log"
 
-                    str2=f""" python mf_{method}_decentralized.py --data "{datapath}" --user_privacy "{user_privacy}" --mode "{mode}" --lr {lr} --embedding_dim {dim} --regularization {reg} --filename "{filename}" --logfile "{logfile}" """
+                    str2=f""" python mf_{method}_decentralized.py --data "{datapath}" --strategy "{strategy}" --user_privacy "{user_privacy}" --mode "{mode}" --lr {lr} --embedding_dim {dim} --regularization {reg} --filename "{filename}" --logfile "{logfile}" """
                     with open(f'run_{method}_decentralized.sh','w') as f:   
                         f.write(str1+str2)
 
@@ -67,8 +69,8 @@ if method=="nonprivate":
     for lr in lr_range:
         for dim in dim_range:
             for reg in reg_range:
-                filename=f"./results-{data}/nonprivate/epoch100_nonprivate_{mode}_dim={dim}_lr={lr}_reg={reg}b.csv"
-                logfile=f"./log-{data}/nonprivate/epoch100_nonprivate_{mode}_dim={dim}_lr={lr}_reg={reg}b.log"
+                filename=f"./results-{data}/nonprivate/nonprivate_{mode}_dim={dim}_lr={lr}_reg={reg}b.csv"
+                logfile=f"./log-{data}/nonprivate/nonprivate_{mode}_dim={dim}_lr={lr}_reg={reg}b.log"
 
                 str2=f""" python mf_nonprivate.py --data "{datapath}" --mode "{mode}"  --lr {lr} --embedding_dim {dim} --regularization {reg} --filename "{filename}" --logfile "{logfile}" """
                 with open(f'run_nonprivate.sh','w') as f:   

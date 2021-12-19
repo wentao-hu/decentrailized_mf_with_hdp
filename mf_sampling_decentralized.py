@@ -95,9 +95,9 @@ def main():
                          help='threshold strategy for sampling mechanism')
 
     parser.add_argument('--mode',
-        type=str,
-        default="cv",
-        help='cv means cross-validation mode, test means test mode')
+                        type=str,
+                        default="cv",
+                        help='cv means cross-validation mode, test means test mode')
     #experiment setting
     parser.add_argument('--data',
 						type=str,
