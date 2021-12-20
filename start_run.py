@@ -6,23 +6,23 @@ import os
 import time
 
 #experiment setting
-data="ml-100k"
-method="sampling"
-mode="test"
+data="ml-1m"
+method="hdp"
+mode="cv"
 datapath=f"Data/{data}"
 #hyperparameter range
-dim_range=[10]
-lr_range=[0.0002]  #initial learning rate
-reg_range=[0.01]
-strategy="min"
+dim_range=[5]
+lr_range=[0.005]  #initial learning rate
+reg_range=[0.001]
+# strategy="min"
 
 
 # create folder to store log and results
-dir1=f'log-{data}/{method}-dpmf'
+dir1=f'log-{data}/{method}'
 if not os.path.exists(dir1):
     os.makedirs(dir1)
 
-dir2=f'results-{data}/{method}-dpmf'
+dir2=f'results-{data}/{method}'
 if not os.path.exists(dir2):
     os.makedirs(dir2)
 
@@ -38,7 +38,7 @@ str1=f"""
 #BSUB -gpu "num=1:mode=exclusive_process"
 """
 #privacy setting
-uc_range=[0.1]
+uc_range=[0.1,0.2,0.3,0.4]
 
 if method=="hdp" or method=="sampling":
     for lr in lr_range:
@@ -50,10 +50,10 @@ if method=="hdp" or method=="sampling":
                     # user_ratio=f"{uc} {f_um} {f_ul}"
                     user_privacy=f"{uc} 0.5 1"
 
-                    filename=f"./results-{data}/{method}-dpmf/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}b.csv"
-                    logfile=f"./log-{data}/{method}-dpmf/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}b.log"
+                    filename=f"./results-{data}/{method}/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}seed0.csv"
+                    logfile=f"./log-{data}/{method}/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}seed0.log"
 
-                    str2=f""" python mf_{method}_decentralized.py --data "{datapath}" --strategy "{strategy}" --user_privacy "{user_privacy}" --mode "{mode}" --lr {lr} --embedding_dim {dim} --regularization {reg} --filename "{filename}" --logfile "{logfile}" """
+                    str2=f""" python mf_{method}_decentralized.py --data "{datapath}" --user_privacy "{user_privacy}" --mode "{mode}" --lr {lr} --embedding_dim {dim} --regularization {reg} --filename "{filename}" --logfile "{logfile}" """
                     with open(f'run_{method}_decentralized.sh','w') as f:   
                         f.write(str1+str2)
 
