@@ -5,12 +5,11 @@ import argparse
 from random import triangular
 from dataprocess import *
 import numpy as np
-import random
 import csv
 import logging
 from sklearn.model_selection import KFold
 from utils import clip_embedding
-np.random.seed(2)
+np.random.seed(0)
 
 
 

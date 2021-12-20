@@ -6,13 +6,13 @@ import os
 import time
 
 #experiment setting
-data="ml-1m"
+data="ml-100k"
 method="sampling"
-mode="cv"
+mode="test"
 datapath=f"Data/{data}"
 #hyperparameter range
 dim_range=[10]
-lr_range=[0.002,0.001,0.0005,0.0002]  #initial learning rate
+lr_range=[0.0002]  #initial learning rate
 reg_range=[0.01]
 strategy="min"
 
@@ -38,7 +38,7 @@ str1=f"""
 #BSUB -gpu "num=1:mode=exclusive_process"
 """
 #privacy setting
-uc_range=[0.1,0.2,0.3,0.4]
+uc_range=[0.1]
 
 if method=="hdp" or method=="sampling":
     for lr in lr_range:
@@ -50,8 +50,8 @@ if method=="hdp" or method=="sampling":
                     # user_ratio=f"{uc} {f_um} {f_ul}"
                     user_privacy=f"{uc} 0.5 1"
 
-                    filename=f"./results-{data}/{method}-dpmf/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}.csv"
-                    logfile=f"./log-{data}/{method}-dpmf/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}.log"
+                    filename=f"./results-{data}/{method}-dpmf/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}b.csv"
+                    logfile=f"./log-{data}/{method}-dpmf/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}b.log"
 
                     str2=f""" python mf_{method}_decentralized.py --data "{datapath}" --strategy "{strategy}" --user_privacy "{user_privacy}" --mode "{mode}" --lr {lr} --embedding_dim {dim} --regularization {reg} --filename "{filename}" --logfile "{logfile}" """
                     with open(f'run_{method}_decentralized.sh','w') as f:   

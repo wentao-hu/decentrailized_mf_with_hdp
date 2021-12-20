@@ -39,7 +39,7 @@ def main():
     print(f"The results of {method} on {data}:\n")
     uc_range=[0.1,0.2,0.3,0.4]
     for uc in uc_range:
-        pattern=f"epsilon_uc{uc}_{method}_cv.*.csv"
+        pattern=f"epsilon_uc{uc}_{method}_test.*.csv"
         #pattern=f"{method}_cv.*default.csv"
         filelist=get_filelist(resultsfolder,pattern)
         filelist=sorted(filelist)

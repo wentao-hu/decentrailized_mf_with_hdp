@@ -2,7 +2,7 @@
 author: Wentao Hu(stevenhwt@gmail.com)
 """
 import numpy as np
-np.random.seed(2)
+np.random.seed(0)
 
 
 class MFModel(object):
