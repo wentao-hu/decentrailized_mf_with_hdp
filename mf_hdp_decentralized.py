@@ -11,10 +11,7 @@ from utils import *
 from start_run import random_seed
 np.random.seed(random_seed)
 
-def set_random_seed(seed):
-    np.random.seed(seed)
 
-#For evaluating on test ratings in HDP mechanism
 def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
     '''Evaluate loss on the test dataset , in HDP we should scale back using user_privacy_vector and item_privacy_vector'''
     absolute_loss = 0
@@ -43,9 +40,8 @@ def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
     return mae,mse
 
 
-#For stretching rating in HDP mechanism
 def stretch_rating(ratingList,user_privacy_vector,item_privacy_vector):
-    # stretch the train rating matrix
+    '''stretch the train rating matrix according to each ratings' privacy weight'''
     for i in range(len(ratingList)):
         user,item=ratingList[i][0],ratingList[i][1]
         user_privacy_weight=user_privacy_vector[user]

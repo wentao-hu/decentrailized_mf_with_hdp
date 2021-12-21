@@ -38,7 +38,7 @@ def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
 
 
 def get_threshold(ratingList,user_privacy_vector,item_privacy_vector,max_budget,strategy):
-    #get the sampling threshold according to sampling stategy
+    '''get the sampling threshold according to sampling stategy'''
     sum_privacy=0
     min_privacy=9999
     max_privacy=-9999

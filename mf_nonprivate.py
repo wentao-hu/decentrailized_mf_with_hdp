@@ -3,13 +3,16 @@
 '''
 import argparse
 from random import triangular
+
+from numpy.random.mtrand import rand
 from dataprocess import *
 import numpy as np
 import csv
 import logging
 from sklearn.model_selection import KFold
 from utils import clip_embedding
-np.random.seed(0)
+from start_run import random_seed
+np.random.seed(random_seed)
 
 
 
