@@ -8,7 +8,8 @@ import numpy as np
 import csv
 import logging
 from utils import *
-np.random.seed(0)
+from start_run import random_seed
+np.random.seed(random_seed)
 
 
 
@@ -168,7 +169,7 @@ def main():
 
 
     #Start running the main procedure
-    logger.info("Start running decentralized sampling dpmf")
+    logger.info(f"Start running decentralized sampling dpmf, random_seed={random_seed}")
     logger.info(args)
 
 
@@ -242,8 +243,8 @@ def main():
 
 
         if args.mode=="test":
-            train_ratings=load_rating_file_as_list(f"{args.data}/ub.base")
-            test_ratings=load_rating_file_as_list(f"{args.data}/ub.test")
+            train_ratings=load_rating_file_as_list(f"{args.data}/u.base")
+            test_ratings=load_rating_file_as_list(f"{args.data}/u.test")
             logger.info(f"dataset: {args.data}/u.base {args.data}/u.test")
             user_dict,item_dict=get_user_and_item_dict(train_ratings)
 

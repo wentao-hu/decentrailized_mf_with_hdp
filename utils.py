@@ -2,7 +2,8 @@
 author: Wentao Hu(stevenhwt@gmail.com)
 """
 import numpy as np
-np.random.seed(0)
+from start_run import random_seed
+np.random.seed(random_seed)
 
 
 class MFModel(object):

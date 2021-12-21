@@ -5,24 +5,27 @@ author: Wentao Hu(stevenhwt@gmail.com)
 import os
 import time
 
+random_seed=1
+
 #experiment setting
 data="ml-1m"
 method="hdp"
-mode="cv"
+mode="test"
 datapath=f"Data/{data}"
 #hyperparameter range
-dim_range=[5]
+dim_range=[10]
 lr_range=[0.005]  #initial learning rate
-reg_range=[0.001]
+reg_range=[0.01]
+
 # strategy="min"
 
 
 # create folder to store log and results
-dir1=f'log-{data}/{method}'
+dir1=f'log-{data}/{method}/seed{random_seed}'
 if not os.path.exists(dir1):
     os.makedirs(dir1)
 
-dir2=f'results-{data}/{method}'
+dir2=f'results-{data}/{method}/seed{random_seed}'
 if not os.path.exists(dir2):
     os.makedirs(dir2)
 
@@ -50,8 +53,9 @@ if method=="hdp" or method=="sampling":
                     # user_ratio=f"{uc} {f_um} {f_ul}"
                     user_privacy=f"{uc} 0.5 1"
 
-                    filename=f"./results-{data}/{method}/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}seed0.csv"
-                    logfile=f"./log-{data}/{method}/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}seed0.log"
+                    logfile=f"{dir1}/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}_seed{random_seed}.log"
+                    filename=f"{dir2}/epsilon_uc{uc}_{method}_{mode}_dim={dim}_lr={lr}_reg={reg}_seed{random_seed}.csv"
+
 
                     str2=f""" python mf_{method}_decentralized.py --data "{datapath}" --user_privacy "{user_privacy}" --mode "{mode}" --lr {lr} --embedding_dim {dim} --regularization {reg} --filename "{filename}" --logfile "{logfile}" """
                     with open(f'run_{method}_decentralized.sh','w') as f:   

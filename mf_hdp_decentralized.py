@@ -8,8 +8,11 @@ import numpy as np
 import csv
 import logging 
 from utils import *
-np.random.seed(0)
+from start_run import random_seed
+np.random.seed(random_seed)
 
+def set_random_seed(seed):
+    np.random.seed(seed)
 
 #For evaluating on test ratings in HDP mechanism
 def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):
@@ -134,7 +137,7 @@ def main():
 
 
     #Start running the main procedure
-    logger.info("Start running decentralized hdpmf")
+    logger.info(f"Start running decentralized hdpmf, random_seed={random_seed}")
     logger.info(args)
 
     # Load the dataset  
@@ -199,8 +202,8 @@ def main():
 
 
         if args.mode=="test":
-            train_ratings=load_rating_file_as_list(f"{args.data}/ub.base")
-            test_ratings=load_rating_file_as_list(f"{args.data}/ub.test")
+            train_ratings=load_rating_file_as_list(f"{args.data}/u.base")
+            test_ratings=load_rating_file_as_list(f"{args.data}/u.test")
             logger.info(f"dataset: {args.data}/u.base {args.data}/u.test")
             user_dict,item_dict=get_user_and_item_dict(train_ratings)
 
