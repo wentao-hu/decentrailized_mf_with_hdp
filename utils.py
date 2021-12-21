@@ -51,7 +51,7 @@ class MFModel(object):
         absolute_loss = 0.0
         square_loss=0
 
-        #On recommender side, item embedding is updated aftering gathering private gradient from all users
+        #On recommender side, item embedding is updated privately by adding decentralized noise
         h=np.random.exponential(1,embedding_dim)
         for i in range(num_examples):
             (user, item, rating) = train_rating_matrix[i]
