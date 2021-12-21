@@ -8,8 +8,8 @@ import numpy as np
 import csv
 import logging 
 from utils import *
-from start_run import random_seed
-np.random.seed(random_seed)
+seed=3
+np.random.seed(seed)
 
 
 def evaluate(model, test_ratings,user_privacy_vector,item_privacy_vector):

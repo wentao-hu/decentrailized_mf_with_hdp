@@ -41,7 +41,7 @@ str1=f"""
 #BSUB -gpu "num=1:mode=exclusive_process"
 """
 #privacy setting
-uc_range=[0.2,0.3,0.4]
+uc_range=[0.1]
 
 if method=="hdp" or method=="sampling":
     for lr in lr_range:
