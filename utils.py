@@ -2,8 +2,7 @@
 author: Wentao Hu(stevenhwt@gmail.com)
 """
 import numpy as np
-from start_program import random_seed
-seed=3
+seed=0
 np.random.seed(seed)
 
 

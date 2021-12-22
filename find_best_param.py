@@ -30,17 +30,17 @@ def read_target_line(filename,num):
 
 
 def main():
-    data="ml-100k"
-    method="sampling"
-    resultsfolder=f"results-{data}/{method}-dpmf"
+    data="ml-1m"
+    method="hdp"
+    seed=0
+    resultsfolder=f"results-{data}/{method}/seed{seed}"
 
     #check csv results and return
     best_result=[]
     print(f"The results of {method} on {data}:\n")
     uc_range=[0.1,0.2,0.3,0.4]
     for uc in uc_range:
-        pattern=f"epsilon_uc{uc}_{method}_test.*.csv"
-        #pattern=f"{method}_cv.*default.csv"
+        pattern=f"epsilon_uc{uc}_{method}_cv_dim=5.*.csv"
         filelist=get_filelist(resultsfolder,pattern)
         filelist=sorted(filelist)
         mse_dict={}

@@ -11,7 +11,7 @@ import csv
 import logging
 from sklearn.model_selection import KFold
 from utils import clip_embedding
-seed=3
+from utils import seed
 np.random.seed(seed)
 
 
@@ -148,7 +148,7 @@ def main():
 
 
     #Start running the main procedure
-    logger.info("Start running nonprivate mf")
+    logger.info(f"Start running nonprivate mf,random_seed={seed}")
     logger.info(args)
 
     init_lr=args.lr
@@ -205,8 +205,8 @@ def main():
 
         if args.mode=="test":
             #load data
-            train_ratings=load_rating_file_as_list(f"{args.data}/ub.base")
-            test_ratings=load_rating_file_as_list(f"{args.data}/ub.test")   
+            train_ratings=load_rating_file_as_list(f"{args.data}/u.base")
+            test_ratings=load_rating_file_as_list(f"{args.data}/u.test")   
             user_dict,item_dict=get_user_and_item_dict(train_ratings)
 
             num_users=max(max(user_dict.values()),len(user_dict))

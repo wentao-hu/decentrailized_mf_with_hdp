@@ -1,14 +1,13 @@
 '''
 author: Wentao Hu(stevenhwt@gmail.com)
 '''
-
 import os
 import time
 
-random_seed=3
+random_seed=0
 
 #experiment setting
-data="ml-1m"
+data="ml-100k"
 method="hdp"
 mode="test"
 datapath=f"Data/{data}"
@@ -17,7 +16,9 @@ dim_range=[10]
 lr_range=[0.005]  #initial learning rate
 reg_range=[0.01]
 
-# strategy="min"
+# #for dpmf method
+# method_for_file="dpmf"
+# strategy="min"  # --strategy "min"
 
 
 # create folder to store log and results
@@ -41,7 +42,7 @@ str1=f"""
 #BSUB -gpu "num=1:mode=exclusive_process"
 """
 #privacy setting
-uc_range=[0.1]
+uc_range=[0.1,0.2,0.3,0.4]
 
 if method=="hdp" or method=="sampling":
     for lr in lr_range:
@@ -62,9 +63,10 @@ if method=="hdp" or method=="sampling":
                         f.write(str1+str2)
 
                     #run .sh file
+                    time.sleep(2)
                     cmd = f'bsub < run_{method}_decentralized.sh'
                     os.system(cmd)
-                    time.sleep(5)
+                    
 
 
 
@@ -73,8 +75,8 @@ if method=="nonprivate":
     for lr in lr_range:
         for dim in dim_range:
             for reg in reg_range:
-                filename=f"./results-{data}/nonprivate/nonprivate_{mode}_dim={dim}_lr={lr}_reg={reg}b.csv"
-                logfile=f"./log-{data}/nonprivate/nonprivate_{mode}_dim={dim}_lr={lr}_reg={reg}b.log"
+                logfile=f"{dir1}/nonprivate_{mode}_dim={dim}_lr={lr}_reg={reg}_seed{random_seed}.log"
+                filename=f"{dir2}/nonprivate_{mode}_dim={dim}_lr={lr}_reg={reg}_seed{random_seed}.csv"
 
                 str2=f""" python mf_nonprivate.py --data "{datapath}" --mode "{mode}"  --lr {lr} --embedding_dim {dim} --regularization {reg} --filename "{filename}" --logfile "{logfile}" """
                 with open(f'run_nonprivate.sh','w') as f:   
@@ -83,4 +85,4 @@ if method=="nonprivate":
                 #run .sh file
                 cmd = f'bsub < run_nonprivate.sh'
                 os.system(cmd)
-                time.sleep(5)
+                time.sleep(2)

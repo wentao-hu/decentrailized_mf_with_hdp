@@ -8,7 +8,7 @@ import numpy as np
 import csv
 import logging 
 from utils import *
-seed=3
+from utils import seed
 np.random.seed(seed)
 
 
@@ -133,7 +133,7 @@ def main():
 
 
     #Start running the main procedure
-    logger.info(f"Start running decentralized hdpmf, random_seed={random_seed}")
+    logger.info(f"Start running decentralized hdpmf, random_seed={seed}")
     logger.info(args)
 
     # Load the dataset  
