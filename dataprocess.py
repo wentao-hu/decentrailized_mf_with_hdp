@@ -2,6 +2,7 @@
 author:Wentao Hu
 '''
 import numpy as np
+import os
 from sklearn.model_selection import KFold
 import pandas as pd
 np.random.seed(0)
@@ -64,24 +65,34 @@ def main():
             arr = line.split("::")
             user, item, rating = int(arr[0]), int(arr[1]), int(arr[2])
             ratingList.append([user, item, rating])             
-            line = f.readline() 
+            line = f.readline()     
 
-    #generate cross validation datasets for ml-1m
-    df=pd.DataFrame(ratingList)
-    kf=KFold(n_splits=5,shuffle=True,random_state=1)
-    file_index=1
-    for train_index,test_index in kf.split(df):
-        train,test=df.iloc[train_index],df.iloc[test_index]
-        train.to_csv(f"Data/ml-1m/u{file_index}.base",sep='\t', index=False, header=False)
-        test.to_csv(f"Data/ml-1m/u{file_index}.test",sep='\t', index=False, header=False)
-        file_index+=1
+    #generate different sparsity dataset for ml-1m (0.8,0.6,0.4,0.2 fraction version)
+    for fraction in [0.2,0.4,0.6,0.8]:
+        df=pd.DataFrame(ratingList)
+        df=df.rename(columns={0:"user",1:"item",2:"rating"})
+        dir=f"Data/ml-1m-{fraction}"
+        if not os.path.exists(dir):
+            os.makedirs(dir)
 
-    #generate train and test dataset for ml-1m   
-    df=df.rename(columns={0:"user",1:"item",2:"rating"})
-    test=df.groupby("user").sample(n=10,random_state=1)
-    train=df.drop(test.index)
-    test.to_csv("Data/ml-1m/u.test",sep='\t', index=False, header=False)
-    train.to_csv("Data/ml-1m/u.base",sep='\t', index=False, header=False)
+        df=df.groupby(df["user"]).apply(lambda x:x.sample(frac=fraction))  #sampling groupby by user
+
+        kf=KFold(n_splits=5,shuffle=True,random_state=1)
+        file_index=1
+        for train_index,test_index in kf.split(df):
+            train,test=df.iloc[train_index],df.iloc[test_index]
+            train.to_csv(f"{dir}/u{file_index}.base",sep='\t', index=False, header=False)
+            test.to_csv(f"{dir}/u{file_index}.test",sep='\t', index=False, header=False)
+            file_index+=1
+
+        #using leave one out strategy to generate train and test dataset
+        df=df.rename(columns={"user":"user2"}) 
+        df=df.reset_index() 
+        df=df[["user2","item","rating"]]
+        test=df.groupby("user2").sample(n=1,random_state=1)
+        train=df.drop(test.index)
+        test.to_csv(f"{dir}/u.test",sep='\t', index=False, header=False)
+        train.to_csv(f"{dir}/u.base",sep='\t', index=False, header=False)
 
 
 if __name__=="__main__":
