@@ -4,10 +4,10 @@ author: Wentao Hu(stevenhwt@gmail.com)
 import os
 import time
 
-random_seed=2
+random_seed=0
 #experiment setting
 
-method="sampling"
+method="hdp"
 mode="test"
 #hyperparameter range
 dim_range=[10]
@@ -23,7 +23,7 @@ uc_range=[0.1]
 
 
 # create folder to store log and results
-for frac in [0.2,0.4,0.6,0.8]:
+for frac in [0.2,0.4,0.6,0.8,1]:
     data=f"ml-1m-{frac}"
     datapath=f"Data/{data}"
 
@@ -69,7 +69,7 @@ for frac in [0.2,0.4,0.6,0.8]:
                         #run .sh file
                         cmd = f'bsub < run_{method}_decentralized.sh'
                         os.system(cmd)
-                        time.sleep(2)
+                        time.sleep(100)
                     
                     
                     

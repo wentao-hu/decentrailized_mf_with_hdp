@@ -68,7 +68,7 @@ def main():
             line = f.readline()     
 
     #generate different sparsity dataset for ml-1m (0.8,0.6,0.4,0.2 fraction version)
-    for fraction in [0.2,0.4,0.6,0.8]:
+    for fraction in [1]:
         df=pd.DataFrame(ratingList)
         df=df.rename(columns={0:"user",1:"item",2:"rating"})
         dir=f"Data/ml-1m-{fraction}"
