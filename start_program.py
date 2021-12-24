@@ -4,13 +4,13 @@ author: Wentao Hu(stevenhwt@gmail.com)
 import os
 import time
 
-random_seed=0
+random_seed=2
 #experiment setting
 
 method="hdp"
 mode="test"
 #hyperparameter range
-dim_range=[10]
+dim_range=[5]
 lr_range=[0.005]  #initial learning rate
 reg_range=[0.01]
 
@@ -69,7 +69,7 @@ for frac in [0.2,0.4,0.6,0.8,1]:
                         #run .sh file
                         cmd = f'bsub < run_{method}_decentralized.sh'
                         os.system(cmd)
-                        time.sleep(100)
+                        time.sleep(2)
                     
                     
                     
