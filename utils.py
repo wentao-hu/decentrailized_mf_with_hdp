@@ -2,7 +2,7 @@
 author: Wentao Hu(stevenhwt@gmail.com)
 """
 import numpy as np
-seed=0
+seed=2
 np.random.seed(seed)
 
 

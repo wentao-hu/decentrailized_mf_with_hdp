@@ -31,11 +31,11 @@ def read_target_line(filename,num):
 
 def main():
     data="ml-1m"
-    method="hdp"
-    dim=10
+    method="sampling"
+    dim=5
     mse_dict={}
-    for seed in [0,1,2,3,10]:
-        resultsfolder=f"results-{data}/{method}/seed{seed}"
+    for seed in [0,1,2,3,10,42]:
+        resultsfolder=f"results-{data}/{method}-dpmf/seed{seed}"
 
         #check csv results and return
         best_result=[]
@@ -55,6 +55,7 @@ def main():
             # min_key=min(mse_dict,key=mse_dict.get)
             # best_result.append([min_key,mse_dict[min_key]])
             # print("====best hyperparameter:",min_key,mse_dict[min_key],"====\n")
+    mse_dict=dict(sorted(mse_dict.items()))
     for k in sorted(mse_dict.keys()):
         print(k,mse_dict[k])
         #wirte the best hyperparameter and corresponding results into .csv file

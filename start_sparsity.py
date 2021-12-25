@@ -4,7 +4,7 @@ author: Wentao Hu(stevenhwt@gmail.com)
 import os
 import time
 
-random_seed=0
+random_seed=42
 #experiment setting
 
 method="sampling"
