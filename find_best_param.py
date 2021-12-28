@@ -30,12 +30,12 @@ def read_target_line(filename,num):
 
 
 def main():
-    data="ml-1m"
+    data="ml-100k"
     method="sampling"
-    dim=5
+    dim=10
     mse_dict={}
     for seed in [0,1,2,3,10,42]:
-        resultsfolder=f"results-{data}/{method}-dpmf/seed{seed}"
+        resultsfolder=f"results-{data}/{method}/seed{seed}"
 
         #check csv results and return
         best_result=[]
