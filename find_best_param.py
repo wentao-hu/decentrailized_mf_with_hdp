@@ -34,8 +34,9 @@ def main():
     method="sampling"
     dim=10
     mse_dict={}
-    for seed in [0,1,2,3,10,42]:
-        resultsfolder=f"results-{data}/{method}/seed{seed}"
+    # for frac in [0.2,0.4,0.6,0.8,1]:
+    for seed in [2]:
+        resultsfolder=f"results-{data}/{method}-dpmf/seed{seed}"
 
         #check csv results and return
         best_result=[]
@@ -43,7 +44,7 @@ def main():
         uc_range=[0.1,0.2,0.3,0.4]
         
         for uc in uc_range:
-            pattern=f"f_uc{uc}_{method}_test_dim={dim}.*.csv"
+            pattern=f"epsilon_uc{uc}_{method}_test_dim={dim}.*.csv"
             filelist=get_filelist(resultsfolder,pattern)
             filelist=sorted(filelist)
             
@@ -51,6 +52,7 @@ def main():
                 filename=resultsfolder+"/"+file
                 line=read_target_line(filename,101)
                 avg_mse=float(line.split(",")[-1])
+                # file=f"frac{frac}_{file}"
                 mse_dict[file]=avg_mse
             # min_key=min(mse_dict,key=mse_dict.get)
             # best_result.append([min_key,mse_dict[min_key]])

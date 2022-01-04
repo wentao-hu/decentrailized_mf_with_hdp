@@ -5,12 +5,12 @@ to do some addtional experiments
 import os
 import time
 
-random_seed=4
+random_seed=1
 #experiment setting
 
 mode="test"
 #hyperparameter range
-dim_range=[5,10]
+dim_range=[5]
 dimension=dim_range[0]
 lr_range=[0.005]  #initial learning rate
 reg_range=[0.01]
