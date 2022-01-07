@@ -51,7 +51,7 @@ def main():
                 for file in filelist:
                     filename=resultsfolder+"/"+file
                     line=read_target_line(filename,101)
-                    mse=float(line.split(",")[2])
+                    mse=float(line.split(",")[-1])
                     file=f"frac{frac}_{file}"
                     mse_dict[file]=mse
                 # min_key=min(mse_dict,key=mse_dict.get)
