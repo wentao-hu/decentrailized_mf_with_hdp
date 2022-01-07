@@ -59,19 +59,19 @@ def string_to_list(str):
 
 def main():
     ratingList = []
-    with open("Data/ml-1m/ratings.dat", "r") as f:
+    with open("Data/ml-100k/u.data", "r") as f:
         line = f.readline()
         while line != None and line != "":
-            arr = line.split("::")
+            arr = line.split("\t")
             user, item, rating = int(arr[0]), int(arr[1]), int(arr[2])
             ratingList.append([user, item, rating])             
             line = f.readline()     
 
     #generate different sparsity dataset for ml-1m (0.8,0.6,0.4,0.2 fraction version)
-    for fraction in [1]:
+    for fraction in [0.2,0.4,0.6,0.8,1]:
         df=pd.DataFrame(ratingList)
         df=df.rename(columns={0:"user",1:"item",2:"rating"})
-        dir=f"Data/ml-1m-{fraction}"
+        dir=f"Data/ml-100k-{fraction}"
         if not os.path.exists(dir):
             os.makedirs(dir)
 
