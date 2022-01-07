@@ -30,13 +30,13 @@ def read_target_line(filename,num):
 
 
 def main():
-    data="ml-1m"
+    data="ml-100k"
     method="sampling"
-    dim=5
+    dim=10
     mse_dict={}
     for frac in [0.2,0.4,0.6,0.8,1]:
         for seed in [0,1,10,2,3]:
-            resultsfolder=f"results-{data}-{frac}/{method}-dpmf/seed{seed}"
+            resultsfolder=f"results-{data}-{frac}/{method}/seed{seed}"
 
             #check csv results and return
             best_result=[]
@@ -44,7 +44,7 @@ def main():
             uc_range=[0.1]
             
             for uc in uc_range:
-                pattern=f"epsilon_uc{uc}_{method}_test_dim={dim}.*.csv"
+                pattern=f"{method}_test_dim={dim}.*.csv"
                 filelist=get_filelist(resultsfolder,pattern)
                 filelist=sorted(filelist)
                 
